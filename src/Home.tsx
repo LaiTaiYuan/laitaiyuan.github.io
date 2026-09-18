@@ -118,21 +118,21 @@ export default function Home() {
                 Leonard Lai<span>賴泰元</span>
               </h1>
               <p className="lp-hero-statement">
-                用程式解題，
+                聽故事、寫故事，
                 <br />
-                用音樂說故事。
+                一起創造故事。
               </p>
               <p className="lp-hero-intro">
-                我是 Leonard，一名喜歡動手做的軟體工程師。
+                我是 Leonard，一名軟體工程師，也是一個喜歡故事的人。
                 <br className="lp-desktop-break" />
-                在技術與創作之間，讓好奇心變成真實作品。
+                用技術與音樂，把聽見的需要，變成能一起完成的作品。
               </p>
               <div className="lp-actions">
                 <a href="#work" className="lp-button">
-                  看看我的作品 <Arrow down />
+                  看看故事與作品 <Arrow down />
                 </a>
-                <a href={`${base}tools/`} className="lp-hero-link">
-                  逛逛工具小舖 <Arrow />
+                <a href="#contact" className="lp-hero-link">
+                  分享你的故事 <Arrow down />
                 </a>
               </div>
             </div>
@@ -306,18 +306,19 @@ export default function Home() {
               <div className="lp-about-copy">
                 <p className="lp-eyebrow">ABOUT ME</p>
                 <h2 id="about-title">
-                  工程師的邏輯，
+                  先聽懂一個人，
                   <br />
-                  創作者的好奇心。
+                  再一起寫下一段。
                 </h2>
                 <p>
-                  我是賴泰元，英文名字是 Leonard Lai。從軟體系統、AI
-                  應用到音樂創作，我喜歡把不同領域的想法接在一起，做出有人會使用、也有人會產生共鳴的作品。
+                  我是賴泰元，英文名字是 Leonard
+                  Lai。我喜歡聽故事、寫故事、創造故事。
+                  每個人的經歷、每個團隊正在面對的問題，都有值得被理解的脈絡；對我來說，好的作品從願意傾聽開始。
                 </p>
                 <p>
-                  以 Java 後端開發為基礎，持續探索雲端架構與 AI
-                  協作；在工作之外，以 LeonardLai
-                  的名字發表音樂，也把實用的創作工具整理分享。
+                  我以 Java 後端開發為基礎，投入雲端架構與 AI 應用，也以
+                  LeonardLai 的名字發表音樂。
+                  聽懂需要之後，用程式把想法做出來，用文字與旋律留下感受，和不同的人一起創造接下來的故事。
                 </p>
                 <p className="lp-alumni">輔仁大學資訊管理學系 · 第 32 屆系友</p>
                 <div className="lp-actions">
@@ -355,7 +356,10 @@ export default function Home() {
               <div>
                 <SkillIcon kind="spark" />
                 <h3>把 AI 放進流程</h3>
-                <p>從協作開發到實際應用，理解情境、串接技術，讓想法落地。</p>
+                <p>
+                  從協作開發、實際應用到 LLM 模型送測，讓 AI
+                  的能力與使用情境一起被檢視。
+                </p>
                 <span>APPLIED AI</span>
               </div>
               <div>
@@ -366,6 +370,52 @@ export default function Home() {
                 </p>
                 <span>MUSIC & CREATION</span>
               </div>
+            </div>
+            <div className="lp-values-grid">
+              <section className="lp-values" aria-labelledby="values-title">
+                <p className="lp-eyebrow">ROOTED IN TAIWAN</p>
+                <h3 id="values-title">
+                  立足台灣，
+                  <br />
+                  讓每個故事都有自己的聲音。
+                </h3>
+                <p>
+                  我珍惜台灣的自由民主、多元與人情味，也重視每個人表達、選擇與被理解的空間。願意聽見不同的聲音，是我理解人、也理解問題的起點。
+                </p>
+                <p>
+                  做科技，也要懂這片土地的語言、文化與生活情境。從繁體中文、在地需求到資料自主，讓技術貼近人，讓信任慢慢累積。
+                </p>
+                <ul className="lp-value-words" aria-label="我重視的價值">
+                  <li>自由民主</li>
+                  <li>尊重多元</li>
+                  <li>以人為本</li>
+                  <li>在地信任</li>
+                </ul>
+              </section>
+              <article
+                className="lp-evaluation"
+                aria-labelledby="evaluation-title"
+              >
+                <p className="lp-eyebrow">TRUSTWORTHY AI · 實務經驗</p>
+                <h3 id="evaluation-title">
+                  AIEC 大型語言模型
+                  <br />
+                  送測經驗
+                </h3>
+                <p>
+                  參與 AIEC（AI 產品與系統評測中心）LLM
+                  模型送測，工作涵蓋送測準備與流程協調、模型調校與測試、結果分析、報告整理與檢視。
+                </p>
+                <p>
+                  除了模型能做什麼，我也關心回答是否可信、如何面對使用風險，以及能否理解台灣的語言與生活脈絡。
+                </p>
+                <ol className="lp-evaluation-flow" aria-label="送測參與範圍">
+                  <li>準備與協調</li>
+                  <li>調校與測試</li>
+                  <li>分析與檢視</li>
+                </ol>
+                <External href={links.aiec}>了解 AIEC 評測</External>
+              </article>
             </div>
           </div>
         </section>
@@ -633,24 +683,30 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="lp-contact">
+        <section
+          className="lp-contact"
+          id="contact"
+          aria-labelledby="contact-title"
+        >
           <div className="lp-container">
             <div>
-              <p className="lp-eyebrow">LET’S MAKE SOMETHING</p>
-              <h2>
-                有個好點子？
+              <p className="lp-eyebrow">EVERY STORY STARTS WITH A HELLO</p>
+              <h2 id="contact-title">
+                你的故事，
                 <br />
-                一起聊聊。
+                我也想聽。
               </h2>
             </div>
             <div>
               <p>
-                軟體開發、AI 應用，或是一段新旋律。
+                一段正在經歷的日常、一個想解決的問題，
                 <br />
-                歡迎來交換想法。
+                或還在醞釀的點子，都歡迎和我分享。
+                <br />
+                不必先有完整的計畫，從一個故事開始就好。
               </p>
               <External href={links.linkedin} className="lp-button">
-                透過 LinkedIn 聯繫我
+                在 LinkedIn 分享故事
               </External>
             </div>
           </div>

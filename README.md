@@ -37,6 +37,10 @@ npm run preview
 
 SEO 提供搜尋引擎所需的基礎內容與標記，不代表已被收錄或保證排名。Search Console 可由網站擁有人另行驗證及提交 sitemap。
 
+人物 JSON-LD 以固定 `#person` 識別 Leonard Lai／賴泰元／LeonardLai，連結官方帳號、報導、AWS 資格及有署名的音樂作品。AIEC 送測以實務能力呈現；個人價值、參與角色與資訊來源同時可在 HTML 閱讀。依 [Google 的 AI 搜尋指引](https://developers.google.com/search/docs/appearance/ai-features)，維持可爬取、可索引、有文字內容且與結構化資料一致的網站；不把特殊 AI 檔案或標記當成收錄保證。
+
+`profile.updatedAt` 與首頁 sitemap 的 `lastmod` 只在個人內容實際更新時調整，不隨每日工具同步排程刷新。所有權驗證與索引成效需在 Search Console／Bing Webmaster Tools 另行確認；目前未加入任何第三方追蹤程式。
+
 ## 部署
 
 GitHub Pages 的 Source 使用 **GitHub Actions**。Push 至 `main` 後，`.github/workflows/deploy-pages.yml` 會執行檢查、更新工具版本、建置並發布。也可在 Actions 手動執行。

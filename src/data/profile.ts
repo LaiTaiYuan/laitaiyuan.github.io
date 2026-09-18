@@ -2,9 +2,11 @@ export const profile = {
   name: "Leonard Lai",
   chineseName: "賴泰元",
   artistName: "LeonardLai",
+  story: "聽故事、寫故事，一起創造故事。",
+  updatedAt: "2026-09-18T08:52:59Z",
   url: "https://laitaiyuan.github.io/",
   description:
-    "Leonard Lai 賴泰元的個人網站。探索軟體工程、AI 應用、音樂創作與工具分享，以及好理家在開發、醫療 AI 技術指導與 AWS 雲端認證經歷。",
+    "Leonard Lai 賴泰元，喜歡聽故事、寫故事、創造故事的軟體工程師與音樂創作者。立足台灣，分享 AI 應用、AIEC LLM 送測經驗、AWS 雲端認證與實作作品，邀你一起聊聊自己的故事。",
   links: {
     github: "https://github.com/LaiTaiYuan",
     linkedin:
@@ -15,6 +17,7 @@ export const profile = {
     youtube: "https://www.youtube.com/@%E8%B3%B4%E6%B3%B0%E5%85%83-l9j",
     youtubeMusic: "https://www.youtube.com/channel/UCWZX3VDdDFLlFQTJWGzFdCg",
     company: "https://www.egroupai.com/zh-TW",
+    aiec: "https://www.aiec.org.tw/",
     credly:
       "https://www.credly.com/badges/2c818479-99cf-4a50-a270-5c01c69c908d",
     family: "https://www.familyfinhealth.com/",
@@ -24,6 +27,21 @@ export const profile = {
     hospital: "https://www.ntucc.gov.tw/nurse/news/68/1199",
   },
 };
+
+export const publicEvidence = [
+  {
+    name: "輔大資管系：好理家在開發與獲獎報導",
+    url: profile.links.university,
+    publisher: "輔仁大學資訊管理學系",
+    datePublished: "2025-12-10",
+  },
+  {
+    name: "台大癌醫：乳房外科團隊 AI 應用與技術指導紀錄",
+    url: profile.links.hospital,
+    publisher: "國立臺灣大學醫學院附設醫院癌醫中心分院",
+    datePublished: "2026-04-23",
+  },
+];
 
 export const tracks = [
   {

@@ -13,4 +13,6 @@
 - DESIGN.md 官方 lint 零錯誤、零警告；frontend-design-premium strict audit 零違規。
 - 建置產物檢查排除工作日誌／內部資料目錄。本次沒有修改或推送原本工作日誌 repo。
 
+同日的個人品牌更新另確認：故事邀請可導向聯繫區塊與本人 LinkedIn；台灣價值及 AIEC 參與流程在停用 JavaScript 時仍可閱讀。人物名稱、官方帳號、報導、AWS 資格與四首音樂作品的署名維持一致，AIEC 經驗未列為個人證照。320、390、768、1440px 無水平溢出，更新後的社群分享圖片保留獅子插畫及故事主軸。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。

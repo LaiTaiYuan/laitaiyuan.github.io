@@ -123,7 +123,7 @@
   vertical-align: middle;
 }
 .lp-hero-statement {
-  font-size: clamp(35px, 4.35vw, 62px);
+  font-size: clamp(32px, 3.65vw, 52px);
   line-height: 1.42;
   font-weight: 900;
   color: var(--tb-yellow);
@@ -556,6 +556,70 @@
 .lp-current-work > a {
   grid-column: 2;
   justify-self: start;
+}
+.lp-values-grid {
+  margin-top: 54px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 52px;
+  align-items: center;
+}
+.lp-values h3,
+.lp-evaluation h3 {
+  font-size: 27px;
+  line-height: 1.55;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+.lp-values > p:not(.lp-eyebrow),
+.lp-evaluation > p:not(.lp-eyebrow) {
+  font-size: 13px;
+  color: var(--tb-muted);
+  margin-top: 17px;
+}
+.lp-value-words {
+  list-style: none;
+  padding: 0;
+  margin: 25px 0 0;
+  display: flex;
+  gap: 21px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+.lp-value-words li {
+  border-bottom: 4px solid var(--tb-yellow);
+  padding-bottom: 5px;
+}
+.lp-evaluation {
+  border: 2px solid var(--tb-ink);
+  border-radius: 16px;
+  padding: 32px;
+  background: var(--tb-green-light);
+}
+.lp-evaluation .lp-eyebrow {
+  font-size: 10px;
+}
+.lp-evaluation-flow {
+  list-style: none;
+  display: flex;
+  gap: 10px;
+  padding: 18px 0 0;
+  margin-block: 22px;
+  border-top: 1px solid var(--tb-line);
+  counter-reset: evaluation-step;
+}
+.lp-evaluation-flow li {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  counter-increment: evaluation-step;
+}
+.lp-evaluation-flow li:before {
+  content: counter(evaluation-step) ".";
+  display: block;
+  font: 700 15px var(--tb-mono);
+  margin-bottom: 8px;
 }
 .lp-channel-link {
   display: flex;
@@ -1076,7 +1140,7 @@
     letter-spacing: 0.08em;
   }
   .lp-hero-statement {
-    font-size: clamp(40px, 9.3vw, 62px);
+    font-size: clamp(30px, 8.1vw, 52px);
     margin-top: 20px;
   }
   .lp-hero-intro {
@@ -1230,6 +1294,18 @@
   .lp-skills > div > span {
     margin-top: 12px;
     font-size: 9px;
+  }
+  .lp-values-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    margin-top: 40px;
+  }
+  .lp-values h3,
+  .lp-evaluation h3 {
+    font-size: 24px;
+  }
+  .lp-evaluation {
+    padding: 25px 22px;
   }
   .lp-journey-grid {
     grid-template-columns: 1fr;
