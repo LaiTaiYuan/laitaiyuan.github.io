@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://laitaiyuan.github.io/sitemap.xml

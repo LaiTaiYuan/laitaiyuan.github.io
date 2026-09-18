@@ -1,0 +1,134 @@
+[
+  {
+    "id": "remotion",
+    "name": "Remotion",
+    "category": "video",
+    "categoryLabel": "影片與動畫",
+    "eyebrow": "讓程式碼動起來",
+    "description": "把 React 元件變成影片。用熟悉的程式邏輯，做出可重複使用的動畫、字幕與影音模板。",
+    "recommendation": "同一支影片需要換文案、換數據、換尺寸？把畫面寫成元件，下一次創作就能接著用。",
+    "useCases": ["動態圖表", "社群短片", "批次產生影片"],
+    "prerequisite": "有 React 基礎，會更快上手",
+    "firstStep": "先跑起官方範例，改一段文字、調整動畫時間，再匯出你的第一支影片。",
+    "links": [
+      {
+        "label": "建立第一支影片",
+        "url": "https://www.remotion.dev/docs/"
+      },
+      {
+        "label": "學習動畫基礎",
+        "url": "https://www.remotion.dev/docs/animating-properties"
+      },
+      {
+        "label": "看看官方範例",
+        "url": "https://www.remotion.dev/templates/"
+      }
+    ],
+    "website": "https://www.remotion.dev/",
+    "websiteLabel": "逛逛官方網站",
+    "repository": "remotion-dev/remotion",
+    "releaseTagPrefix": "v",
+    "licenseLabel": "原始碼公開・自訂授權",
+    "licenseNote": "商用與團隊使用前，請先確認官方授權條件。",
+    "licenseUrl": "https://www.remotion.dev/docs/license"
+  },
+  {
+    "id": "open-slide",
+    "name": "Open Slide",
+    "category": "slides",
+    "categoryLabel": "簡報與表達",
+    "eyebrow": "把想法，變成下一張投影片",
+    "description": "為 AI 程式助手打造的簡報框架。用自然語言描述想法，讓助手編寫 React 投影片，再直接預覽與展示。",
+    "recommendation": "適合想讓簡報持續修改、重複使用的人。內容和版面留在程式裡，也能請 AI 一起調整。",
+    "useCases": ["AI 協作簡報", "技術分享", "工作成果展示"],
+    "prerequisite": "搭配 AI 程式助手與 Node.js 環境",
+    "firstStep": "跟著專案 README 建立簡報，給 AI 一個主題，先完成三張能清楚表達想法的投影片。",
+    "links": [
+      {
+        "label": "跟著 README 開始",
+        "url": "https://github.com/1weiho/open-slide#readme"
+      },
+      {
+        "label": "閱讀官方文件",
+        "url": "https://open-slide.dev/docs"
+      },
+      {
+        "label": "探索專案與範例",
+        "url": "https://github.com/1weiho/open-slide"
+      }
+    ],
+    "website": "https://github.com/1weiho/open-slide",
+    "websiteLabel": "前往 GitHub",
+    "repository": "1weiho/open-slide",
+    "releaseTagPrefix": "@open-slide/core@",
+    "licenseLabel": "開源・MIT 授權",
+    "licenseNote": "本頁追蹤核心套件的正式版本。",
+    "licenseUrl": "https://github.com/1weiho/open-slide/blob/main/LICENSE"
+  },
+  {
+    "id": "gitnexus",
+    "name": "GitNexus",
+    "category": "code",
+    "categoryLabel": "程式探索與 AI 開發",
+    "eyebrow": "替程式碼，畫一張關係地圖",
+    "description": "把程式庫整理成知識圖譜，看見函式、依賴與執行流程的關係，也能透過 MCP 提供脈絡給 AI 程式助手。",
+    "recommendation": "接手陌生專案，或準備修改共用程式時，先看懂誰依賴誰，讓閱讀與評估影響範圍更有方向。",
+    "useCases": ["程式碼圖譜", "變更影響分析", "MCP 工具"],
+    "prerequisite": "先用 Web UI 探索，再依需要設定 CLI 與 MCP",
+    "firstStep": "先用官方 Web UI 看一個公開專案，理解圖中的依賴關係；需要帶進開發流程時，再跟著 README 設定本機索引與 AI 助手。",
+    "links": [
+      {
+        "label": "閱讀快速入門",
+        "url": "https://github.com/abhigyanpatwari/GitNexus#quick-start"
+      },
+      {
+        "label": "試試互動程式碼圖譜",
+        "url": "https://gitnexus.vercel.app/"
+      },
+      {
+        "label": "認識 AI 助手能用的工具",
+        "url": "https://github.com/abhigyanpatwari/GitNexus#what-your-ai-agent-gets"
+      }
+    ],
+    "website": "https://gitnexus.vercel.app/",
+    "websiteLabel": "打開互動圖譜",
+    "repository": "abhigyanpatwari/GitNexus",
+    "releaseTagPrefix": "v",
+    "licenseLabel": "原始碼公開・非商業授權",
+    "licenseNote": "採 PolyForm Noncommercial；使用範圍請見專案授權。",
+    "licenseUrl": "https://github.com/abhigyanpatwari/GitNexus/blob/main/LICENSE"
+  },
+  {
+    "id": "maplibre-gl-js",
+    "name": "MapLibre GL JS",
+    "category": "map",
+    "categoryLabel": "地圖與資料視覺化",
+    "eyebrow": "把資料，放到地圖上",
+    "description": "開源的網頁互動地圖函式庫。用 WebGL 流暢繪製向量圖磚，可自訂樣式、疊加自己的資料圖層，也支援 3D 地形與地球儀視角。",
+    "recommendation": "想在網站放一張自己的地圖，又不想被商業授權綁住？MapLibre 免授權金、樣式規格公開，搭配任何圖磚來源都能用。",
+    "useCases": ["互動地圖", "資料視覺化", "自訂地圖樣式"],
+    "prerequisite": "會基本 JavaScript，並準備一組圖磚或樣式網址",
+    "firstStep": "照著官方 Quickstart 放上第一張地圖，換成自己喜歡的樣式，再疊一層標記或 GeoJSON 資料，看它在地圖上出現。",
+    "links": [
+      {
+        "label": "快速開始",
+        "url": "https://maplibre.org/maplibre-gl-js/docs/"
+      },
+      {
+        "label": "瀏覽官方範例",
+        "url": "https://maplibre.org/maplibre-gl-js/docs/examples/"
+      },
+      {
+        "label": "認識樣式規格",
+        "url": "https://maplibre.org/maplibre-style-spec/"
+      }
+    ],
+    "website": "https://maplibre.org/",
+    "websiteLabel": "逛逛官方網站",
+    "repository": "maplibre/maplibre-gl-js",
+    "releaseTagPrefix": "v",
+    "licenseLabel": "開源・BSD 3-Clause 授權",
+    "licenseNote": "可自由用於個人與商業專案；圖磚與地圖資料的授權請另外確認。",
+    "licenseUrl": "https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt"
+  }
+]

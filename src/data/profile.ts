@@ -1,0 +1,65 @@
+export const profile = {
+  name: "Leonard Lai",
+  chineseName: "賴泰元",
+  artistName: "LeonardLai",
+  url: "https://laitaiyuan.github.io/",
+  description:
+    "Leonard Lai 賴泰元的個人網站。探索軟體工程、AI 應用、音樂創作與工具分享，以及好理家在開發、醫療 AI 技術指導與 AWS 雲端認證經歷。",
+  links: {
+    github: "https://github.com/LaiTaiYuan",
+    linkedin:
+      "https://www.linkedin.com/in/%E6%B3%B0%E5%85%83-%E8%B3%B4-a5a594379/",
+    spotify: "https://open.spotify.com/artist/4Spm3n5CXCuQGDG1Gg76QG",
+    apple: "https://music.apple.com/tw/artist/leonardlai/1741625275",
+    amazon: "https://music.amazon.in/artists/B0D1W2MFNP/leonardlai",
+    youtube: "https://www.youtube.com/@%E8%B3%B4%E6%B3%B0%E5%85%83-l9j",
+    youtubeMusic: "https://www.youtube.com/channel/UCWZX3VDdDFLlFQTJWGzFdCg",
+    company: "https://www.egroupai.com/zh-TW",
+    credly:
+      "https://www.credly.com/badges/2c818479-99cf-4a50-a270-5c01c69c908d",
+    family: "https://www.familyfinhealth.com/",
+    award: "https://www.familyfinhealth.com/news/1",
+    university: "https://www.instagram.com/p/DSEMGJgD8Nz/",
+    facebook: "https://www.facebook.com/FJUIM/posts/1316354283624666",
+    hospital: "https://www.ntucc.gov.tw/nurse/news/68/1199",
+  },
+};
+
+export const tracks = [
+  {
+    title: "Aurora in July",
+    year: "2026",
+    duration: "4:59",
+    artist: "LeonardLai",
+    id: "2pHF6UjP8W1mpDPQYy5ANf",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e021504d1ee23a5c8e00b76f328",
+  },
+  {
+    title: "Baby RAP",
+    year: "2025",
+    duration: "1:45",
+    artist: "LeonardLai, LAI, TAI-YUAN",
+    id: "79q6xBDEgICbNbXbIfgvaq",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02ce0c551c310e93b3520b41e5",
+  },
+  {
+    title: "賴沛小蘋果",
+    year: "2025",
+    duration: "4:04",
+    artist: "LeonardLai, LAI, TAI-YUAN",
+    id: "3JCf3ctN0RhShEcbdNlEgA",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e0271cd41d2f4495a80f4ddc645",
+  },
+  {
+    title: "歡迎光臨，小孩",
+    year: "2024",
+    duration: "3:47",
+    artist: "Pinhsu, LeonardLai",
+    id: "3Kmu174w8EJIkEscGYhB7J",
+    image:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e020d80499fd0548398a5b4e2e7",
+  },
+];
