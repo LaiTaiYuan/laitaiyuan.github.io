@@ -17,4 +17,6 @@
 
 同日的首頁動態更新另確認：以 Chromium 在 1440 與 390px 逐段截圖，進場、揭示、固定導覽、跑馬燈、3D 傾斜與時間線皆正確；`prefers-reduced-motion: reduce` 下無動畫且創作領域改為靜態置中；模擬不支援 scroll-driven animation 時 `--lp-scroll` 後備生效；正式建置後兩頁 hydration 無錯誤，無水平溢出。
 
+首頁圖層與圖片更新另確認：獅子場景七個圖層靜止時與原圖逐像素一致；尾巴、燈泡挖空後的底圖在動作中無殘影；AVIF／WebP 由 `<picture>` 正確選用，首頁圖片總量由約 4.7MB 降至 1MB 以下；`@view-transition` 規則在 Chromium 解析成功；正式建置後兩頁 hydration 無錯誤。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。

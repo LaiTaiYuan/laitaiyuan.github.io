@@ -65,6 +65,39 @@ body {
   min-width: 320px;
   margin: 0;
 }
+picture {
+  display: contents;
+}
+
+/* Cross-document view transitions: moving between the homepage and the
+   toolbox morphs the header and brand instead of flashing a blank page
+   (Chrome 126+/Safari 18.2+; other browsers navigate normally). */
+@view-transition {
+  navigation: auto;
+}
+.lp-header,
+.toolbox-header {
+  view-transition-name: site-header;
+}
+.lp-brand,
+.toolbox-brand {
+  view-transition-name: site-brand;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
+  animation-timing-function: var(--tb-ease-quint);
+}
+::view-transition-group(site-header),
+::view-transition-group(site-brand) {
+  animation-duration: 0.55s;
+  animation-timing-function: var(--tb-ease-quint);
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
 button,
 a,
 summary {

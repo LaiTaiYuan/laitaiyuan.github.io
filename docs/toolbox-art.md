@@ -8,7 +8,7 @@
 
 ## Animated layers (2026-09-18)
 
-- `scripts/build-toolbox-scene.py --review` cuts `cat`, `beaver`, `bird`, `raccoon` (outline-bounded fill inside a
+- `scripts/build-toolbox-scene.py --review` (fill helpers shared with the homepage in `scripts/scene_cutout.py`) cuts `cat`, `beaver`, `bird`, `raccoon` (outline-bounded fill inside a
   hand-drawn polygon), the static `laptop` prop and the circular `reel` disc into `public/tools/scene/*.webp`
   (lossless) and writes `src/data/toolboxScene.json` with each box as a percentage of the 2172 × 724 frame.
 - `--review` also drops mask overlays into `output/toolbox-scene/` for checking the cut-outs.

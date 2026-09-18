@@ -257,14 +257,26 @@ function ToolboxScene() {
         ))}
       </div>
       <div className="toolbox-scene-art">
-        <img
-          className="toolbox-hero-art"
-          src={`${publicBase}tools/maker-street.png`}
-          width={scene.width}
-          height={scene.height}
-          alt=""
-          fetchPriority="high"
-        />
+        <picture>
+          <source
+            type="image/avif"
+            srcSet={`${publicBase}tools/maker-street-1086.avif 1086w, ${publicBase}tools/maker-street-2172.avif 2172w`}
+            sizes="(max-width: 1260px) 100vw, 1260px"
+          />
+          <source
+            type="image/webp"
+            srcSet={`${publicBase}tools/maker-street-1086.webp 1086w, ${publicBase}tools/maker-street-2172.webp 2172w`}
+            sizes="(max-width: 1260px) 100vw, 1260px"
+          />
+          <img
+            className="toolbox-hero-art"
+            src={`${publicBase}tools/maker-street.png`}
+            width={scene.width}
+            height={scene.height}
+            alt=""
+            fetchPriority="high"
+          />
+        </picture>
         <img
           className="toolbox-scene-reel"
           src={`${publicBase}tools/scene/reel.webp`}

@@ -6,30 +6,27 @@ Reads public/tools/maker-street.png and writes:
   public/tools/scene/<layer>.webp   lossless cut-outs (characters, reel, static props)
   src/data/toolboxScene.json        layer boxes as percentages of the scene
 
-Characters are isolated with an outline-bounded fill: everything inside the
-hand-drawn polygon that is not connected to the background (regions reachable
-from outside the polygon) belongs to the character. Because every cut-out is
-placed back over the untouched base image at the exact same spot, the edges
-only need to be roughly right; the animations are small scale/translate moves.
+Characters are isolated with an outline-bounded fill (see scene_cutout.py).
+Because every cut-out is placed back over the untouched base image at the
+exact same spot, the edges only need to be roughly right; the animations are
+small scale/translate moves.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from collections import deque
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
+
+from scene_cutout import cut_character, cut_disc, percent_box, save
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "public/tools/maker-street.png"
 OUT_DIR = ROOT / "public/tools/scene"
 MANIFEST = ROOT / "src/data/toolboxScene.json"
-
-DARK_LUMA = 40  # outline ink and dark fills
-RING = 3  # half the outline width, trimmed from the background side
 
 # Polygons in source pixels, generous around each character but never
 # enclosing a whole background object (it would travel with the character).
@@ -89,126 +86,6 @@ DISCS = {
 }
 
 
-def luma(rgba: np.ndarray) -> np.ndarray:
-    rgb = rgba[..., :3].astype(np.float32)
-    return rgb[..., 0] * 0.299 + rgb[..., 1] * 0.587 + rgb[..., 2] * 0.114
-
-
-def label_components(free: np.ndarray, diagonal: bool = False) -> np.ndarray:
-    """Connected component labels for True pixels of `free` (0 = not free)."""
-    height, width = free.shape
-    labels = np.zeros(free.shape, dtype=np.int32)
-    current = 0
-    steps = ((-1, 0), (1, 0), (0, -1), (0, 1))
-    if diagonal:
-        steps += ((-1, -1), (-1, 1), (1, -1), (1, 1))
-    for y0 in range(height):
-        row = free[y0]
-        for x0 in range(width):
-            if not row[x0] or labels[y0, x0]:
-                continue
-            current += 1
-            labels[y0, x0] = current
-            queue = deque([(y0, x0)])
-            while queue:
-                y, x = queue.popleft()
-                for dy, dx in steps:
-                    ny, nx = y + dy, x + dx
-                    if 0 <= ny < height and 0 <= nx < width:
-                        if free[ny, nx] and not labels[ny, nx]:
-                            labels[ny, nx] = current
-                            queue.append((ny, nx))
-    return labels
-
-
-def polygon_mask(size: tuple[int, int], points: list[tuple[int, int]]) -> np.ndarray:
-    canvas = Image.new("L", size, 0)
-    ImageDraw.Draw(canvas).polygon(points, fill=255)
-    return np.array(canvas) > 0
-
-
-def dilate(mask: np.ndarray, radius: int) -> np.ndarray:
-    image = Image.fromarray(mask.astype(np.uint8) * 255)
-    return np.array(image.filter(ImageFilter.MaxFilter(radius * 2 + 1))) > 0
-
-
-def drop_specks(mask: np.ndarray, min_size: int = 120) -> np.ndarray:
-    labels = label_components(mask, diagonal=True)
-    counts = np.bincount(labels.ravel())
-    keep = counts >= min_size
-    keep[0] = False
-    return keep[labels]
-
-
-def cut_character(
-    rgba: np.ndarray,
-    points: list[tuple[int, int]],
-    seals: list[list[tuple[int, int]]],
-    force: list[list[tuple[int, int]]],
-) -> tuple[np.ndarray, tuple[int, int, int, int]]:
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    margin = 12
-    x0, y0 = max(min(xs) - margin, 0), max(min(ys) - margin, 0)
-    x1, y1 = min(max(xs) + margin, rgba.shape[1]), min(max(ys) + margin, rgba.shape[0])
-    window = rgba[y0:y1, x0:x1]
-    inside = polygon_mask((x1 - x0, y1 - y0), [(x - x0, y - y0) for x, y in points])
-    opaque = window[..., 3] > 128
-    dark = (luma(window) < DARK_LUMA) & opaque
-    if seals:
-        ink = Image.new("L", (x1 - x0, y1 - y0), 0)
-        for line in seals:
-            ImageDraw.Draw(ink).line([(x - x0, y - y0) for x, y in line], fill=255, width=3)
-        dark |= np.array(ink) > 0
-    free = opaque & ~dark
-    labels = label_components(free)
-    outside_labels = np.unique(labels[~inside & free])
-    background = np.isin(labels, outside_labels) & free
-    background |= ~opaque
-    mask = inside & ~dilate(background, RING)
-    for polygon in force:
-        keep = polygon_mask((x1 - x0, y1 - y0), [(x - x0, y - y0) for x, y in polygon])
-        mask |= keep & inside & ~background
-    mask = drop_specks(mask)
-    # Drop stray specks and soften the edge by a pixel.
-    alpha = Image.fromarray(mask.astype(np.uint8) * 255).filter(ImageFilter.GaussianBlur(0.6))
-    alpha = np.array(alpha)
-    ys_on, xs_on = np.nonzero(alpha)
-    bx0, bx1 = xs_on.min(), xs_on.max() + 1
-    by0, by1 = ys_on.min(), ys_on.max() + 1
-    out = window[by0:by1, bx0:bx1].copy()
-    out[..., 3] = np.minimum(out[..., 3], alpha[by0:by1, bx0:bx1])
-    return out, (x0 + bx0, y0 + by0, x0 + bx1, y0 + by1)
-
-
-def cut_disc(rgba: np.ndarray, cx: int, cy: int, radius: int) -> tuple[np.ndarray, tuple[int, int, int, int]]:
-    box = (cx - radius, cy - radius, cx + radius, cy + radius)
-    window = rgba[box[1]:box[3], box[0]:box[2]].copy()
-    size = radius * 2
-    canvas = Image.new("L", (size * 4, size * 4), 0)
-    ImageDraw.Draw(canvas).ellipse((0, 0, size * 4 - 1, size * 4 - 1), fill=255)
-    alpha = np.array(canvas.resize((size, size), Image.LANCZOS))
-    window[..., 3] = np.minimum(window[..., 3], alpha)
-    return window, box
-
-
-def percent_box(box: tuple[int, int, int, int], width: int, height: int) -> dict[str, float]:
-    x0, y0, x1, y1 = (int(v) for v in box)
-    return {
-        "x": round(x0 / width * 100, 3),
-        "y": round(y0 / height * 100, 3),
-        "w": round((x1 - x0) / width * 100, 3),
-        "h": round((y1 - y0) / height * 100, 3),
-    }
-
-
-def save(rgba: np.ndarray, name: str) -> int:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    path = OUT_DIR / f"{name}.webp"
-    Image.fromarray(rgba, "RGBA").save(path, "WEBP", lossless=True, quality=100, method=6)
-    return path.stat().st_size
-
-
 def write_review(rgba: np.ndarray, layers: dict[str, tuple[np.ndarray, tuple[int, int, int, int]]]) -> None:
     review_dir = ROOT / "output/toolbox-scene"
     review_dir.mkdir(parents=True, exist_ok=True)
@@ -246,7 +123,7 @@ def main() -> None:
 
     manifest = {"width": width, "height": height, "layers": {}}
     for name, (cut, box) in layers.items():
-        size = save(cut, name)
+        size = save(cut, OUT_DIR, name)
         manifest["layers"][name] = percent_box(box, width, height)
         print(f"{name:8s} box={tuple(int(v) for v in box)} {size / 1024:.0f} KB")
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

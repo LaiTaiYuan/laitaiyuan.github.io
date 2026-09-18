@@ -49,6 +49,6 @@
 ## 圖像
 
 - `public/images/leonard-it-matters-2025.jpg`：本人提供的 2025 IT Matters Awards 形象照，原圖複製；網頁僅以 CSS 呈現比例，未修改本人外觀。
-- `public/images/leonard-lion-studio.png`：本站原創 AI 插畫，依本人指定以獅子作為 Leonard 的代表角色，包含眼鏡、耳機、程式與音樂工作桌。
+- `public/images/leonard-lion-studio.png`：本站原創 AI 插畫，依本人指定以獅子作為 Leonard 的代表角色，包含眼鏡、耳機、程式與音樂工作桌。`public/images/lion/` 內的底圖與動態圖層皆由此檔以 `scripts/build-lion-scene.py` 衍生（見 `lion-art.md`）。
 - 既有工具小舖插畫見 [toolbox-art.md](toolbox-art.md)。
 - `public/og-image.png`：本站自製社群分享卡，以同一組品牌文字、色彩與獅子插畫排版。

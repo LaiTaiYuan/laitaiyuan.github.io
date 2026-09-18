@@ -261,12 +261,89 @@
 .lp-hero-figure {
   position: relative;
 }
-.lp-hero-art img {
-  display: block;
+.lp-hero-scene {
+  position: relative;
   width: calc(100% + 24px);
   max-width: none;
-  height: auto;
   margin-left: -12px;
+}
+.lp-scene-base {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lp-scene-layers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lp-layer,
+.lp-fx,
+.lp-sparkle {
+  position: absolute;
+}
+.lp-layer img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.lp-fx {
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+.lp-fx-lamp {
+  clip-path: polygon(37% 6%, 56% 6%, 100% 100%, 0 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 190, 35, 0.5),
+    rgba(255, 190, 35, 0.12) 55%,
+    rgba(255, 190, 35, 0)
+  );
+  transform-origin: 46% 6%;
+}
+.lp-fx-screen {
+  border-radius: 6%;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgba(139, 200, 244, 0.55),
+    rgba(139, 200, 244, 0) 72%
+  );
+}
+.lp-fx-bulb {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 220, 90, 0.75),
+    rgba(255, 190, 35, 0.28) 38%,
+    rgba(255, 190, 35, 0) 68%
+  );
+}
+.lp-sparkle {
+  fill: var(--tb-white);
+  stroke: var(--tb-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0);
+}
+.lp-notes {
+  position: absolute;
+  left: 90%;
+  top: 28%;
+  width: 34%;
+  aspect-ratio: 1;
+}
+.lp-note {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46%;
+  fill: var(--tb-yellow);
+  stroke: var(--tb-ink);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  opacity: 0;
 }
 .lp-art-note {
   display: table;
@@ -1286,7 +1363,7 @@
     padding: 8px 16px;
     margin-bottom: 7px;
   }
-  .lp-hero-art img {
+  .lp-hero-scene {
     width: 100%;
     margin: 0;
   }
@@ -1723,6 +1800,124 @@
     opacity: 0.35;
   }
 }
+@keyframes lp-head-bob {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translate3d(0, -1.1%, 0) rotate(-0.6deg);
+  }
+  70% {
+    transform: translate3d(0, -0.4%, 0) rotate(0.5deg);
+  }
+}
+@keyframes lp-glance {
+  0%,
+  38%,
+  62%,
+  100% {
+    transform: none;
+  }
+  44%,
+  56% {
+    transform: translate3d(-14%, 4%, 0);
+  }
+  74%,
+  86% {
+    transform: translate3d(12%, -3%, 0);
+  }
+}
+@keyframes lp-sway {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  35% {
+    transform: rotate(var(--sway, 0.8deg));
+  }
+  75% {
+    transform: rotate(calc(var(--sway, 0.8deg) * -0.7));
+  }
+}
+@keyframes lp-wag {
+  0%,
+  42%,
+  100% {
+    transform: none;
+  }
+  8% {
+    transform: rotate(3deg);
+  }
+  17% {
+    transform: rotate(-3deg);
+  }
+  26% {
+    transform: rotate(2.6deg);
+  }
+  35% {
+    transform: rotate(-1.6deg);
+  }
+}
+@keyframes lp-bulb {
+  50% {
+    transform: scale(1.045);
+  }
+}
+@keyframes lp-bulb-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes lp-lamp {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes lp-screen {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes lp-sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes lp-note {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(-8deg) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(70% + var(--i, 0) * 45%), -280%, 0)
+      rotate(12deg) scale(1);
+  }
+}
 
 /* Hover physics (transitions, so they still respect reduced motion) */
 .lp-header-inner {
@@ -1862,8 +2057,79 @@
   .lp-hero-figure {
     animation: lp-art-in 1.4s var(--tb-ease-quint) 0.25s backwards;
   }
-  .lp-hero-art img {
+  .lp-hero-scene {
     animation: lp-float 7s ease-in-out 1.7s infinite;
+  }
+
+  /* Studio scene: the lion breathes, looks around, wags; lights breathe */
+  .lp-layer--head img {
+    animation: lp-head-bob 4.6s ease-in-out 2s infinite;
+  }
+  .lp-layer--head,
+  .lp-layer--bulb,
+  .lp-layer--plant-left,
+  .lp-layer--plant-right,
+  .lp-layer--tail {
+    transform: translate3d(
+      calc(var(--tb-px, 0) * var(--depth, 0px)),
+      calc(var(--tb-py, 0) * var(--depth, 0px) * 0.7),
+      0
+    );
+    transition: transform 1s var(--tb-ease-out);
+  }
+  .lp-layer--head {
+    --depth: 3px;
+  }
+  .lp-layer--bulb {
+    --depth: 4px;
+  }
+  .lp-layer--plant-left,
+  .lp-layer--plant-right {
+    --depth: 5px;
+  }
+  .lp-layer--tail {
+    --depth: 2px;
+  }
+  .lp-layer--pupil-left,
+  .lp-layer--pupil-right {
+    transform: translate3d(
+      calc(var(--tb-px, 0) * 16%),
+      calc(var(--tb-py, 0) * 11%),
+      0
+    );
+    transition: transform 0.35s var(--tb-ease-out);
+  }
+  .lp-layer--pupil-left img,
+  .lp-layer--pupil-right img {
+    animation: lp-glance 9s ease-in-out 3s infinite;
+  }
+  .lp-layer--plant-left img {
+    animation: lp-sway 6.5s ease-in-out infinite;
+  }
+  .lp-layer--plant-right img {
+    animation: lp-sway 5.2s ease-in-out -2s infinite;
+    --sway: 1.4deg;
+  }
+  .lp-layer--tail img {
+    animation: lp-wag 5.5s ease-in-out 1.5s infinite;
+  }
+  .lp-layer--bulb img {
+    animation: lp-bulb 2.8s ease-in-out infinite;
+  }
+  .lp-fx-bulb {
+    animation: lp-bulb-glow 2.8s ease-in-out infinite;
+  }
+  .lp-fx-lamp {
+    animation: lp-lamp 6s ease-in-out infinite;
+  }
+  .lp-fx-screen {
+    animation: lp-screen 4.4s ease-in-out infinite;
+  }
+  .lp-sparkle {
+    animation: lp-sparkle 2.8s ease-in-out var(--delay, 0s) infinite;
+  }
+  .lp-note {
+    animation: lp-note 3.9s ease-out calc(var(--i, 0) * 1.3s) infinite;
   }
   .lp-art-note {
     animation: lp-note-in 0.8s var(--tb-ease-spring) 1.05s backwards;

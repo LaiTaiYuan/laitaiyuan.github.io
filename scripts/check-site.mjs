@@ -26,7 +26,7 @@ for (const content of [
   "AWS Certified",
   "Aurora in July",
   "eGroupAI",
-  "leonard-lion-studio.png",
+  "images/lion/base",
   "leonard-it-matters-2025.jpg",
 ])
   assert(home.includes(content), `Homepage includes ${content}`);

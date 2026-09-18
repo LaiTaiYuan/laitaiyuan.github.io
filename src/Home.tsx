@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import lion from "./data/lionScene.json";
 import { profile, tracks } from "./data/profile";
 import {
   useHeroParallax,
@@ -14,6 +15,170 @@ const base = import.meta.env.BASE_URL;
 const links = profile.links;
 const navSections = ["work", "about", "music"] as const;
 const interests = ["軟體工程", "AI 實作", "音樂創作", "好工具分享"];
+const heroSizes = "(max-width: 760px) 100vw, (max-width: 1400px) 55vw, 720px";
+const portraitSizes =
+  "(max-width: 760px) 100vw, (max-width: 1400px) 45vw, 600px";
+const streetSizes = "(max-width: 760px) 100vw, (max-width: 1400px) 60vw, 800px";
+
+// Responsive encodes produced by scripts/build-images.py and
+// scripts/build-lion-scene.py; the original file stays as the <img> fallback.
+function Picture({
+  stem,
+  widths,
+  sizes,
+  children,
+}: {
+  stem: string;
+  widths: number[];
+  sizes: string;
+  children: ReactNode;
+}) {
+  const set = (ext: string) =>
+    widths.map((w) => `${base}${stem}-${w}.${ext} ${w}w`).join(", ");
+  return (
+    <picture>
+      <source type="image/avif" srcSet={set("avif")} sizes={sizes} />
+      <source type="image/webp" srcSet={set("webp")} sizes={sizes} />
+      {children}
+    </picture>
+  );
+}
+
+// Studio scene layers are cut from the lion illustration by
+// scripts/build-lion-scene.py and laid back over the base at the same spot
+// (see docs/lion-art.md). Boxes and pivots are percentages of the scene.
+type LionLayer = keyof typeof lion.layers;
+
+function pct(value: number, total: number) {
+  return `${((value / total) * 100).toFixed(3)}%`;
+}
+
+function sceneRect(x0: number, y0: number, x1: number, y1: number) {
+  return {
+    left: pct(x0, lion.width),
+    top: pct(y0, lion.height),
+    width: pct(x1 - x0, lion.width),
+    height: pct(y1 - y0, lion.height),
+  } satisfies CSSProperties;
+}
+
+function sceneSpot(x: number, y: number, size: number): CSSProperties {
+  return {
+    left: pct(x - size / 2, lion.width),
+    top: pct(y - size / 2, lion.height),
+    width: pct(size, lion.width),
+  };
+}
+
+function SceneLayer({
+  name,
+  children,
+}: {
+  name: LionLayer;
+  children?: ReactNode;
+}) {
+  const box = lion.layers[name];
+  return (
+    <div
+      className={`lp-layer lp-layer--${name}`}
+      style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%` }}
+    >
+      <img
+        src={`${base}images/lion/${name}.webp`}
+        alt=""
+        decoding="async"
+        fetchPriority="low"
+        style={{ transformOrigin: `${box.ox}% ${box.oy}%` }}
+      />
+      {children}
+    </div>
+  );
+}
+
+function Note({ index }: { index: number }) {
+  return (
+    <svg
+      className="lp-note"
+      viewBox="0 0 24 32"
+      style={{ "--i": index } as CSSProperties}
+      aria-hidden="true"
+    >
+      <path d="M9 2v20.5a5.5 5.5 0 1 1-3-4.9V8l14-4v13.5a5.5 5.5 0 1 1-3-4.9V9.4L12 11.6" />
+    </svg>
+  );
+}
+
+function Sparkle({
+  x,
+  y,
+  size,
+  delay,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+}) {
+  return (
+    <svg
+      className="lp-sparkle"
+      viewBox="0 0 24 24"
+      style={
+        { ...sceneSpot(x, y, size), "--delay": `${delay}s` } as CSSProperties
+      }
+      aria-hidden="true"
+    >
+      <path d="M12 0c1 7 5 11 12 12-7 1-11 5-12 12-1-7-5-11-12-12 7-1 11-5 12-12Z" />
+    </svg>
+  );
+}
+
+function LionScene() {
+  return (
+    <div
+      className="lp-hero-scene"
+      style={{ aspectRatio: `${lion.width} / ${lion.height}` }}
+    >
+      <Picture stem="images/lion/base" widths={[768, 1536]} sizes={heroSizes}>
+        <img
+          className="lp-scene-base"
+          src={`${base}images/lion/base.png`}
+          alt="戴眼鏡與耳機的獅子 Leonard，在程式與音樂工作桌前創作"
+          width={lion.width}
+          height={lion.height}
+          fetchPriority="high"
+        />
+      </Picture>
+      <div className="lp-scene-layers" aria-hidden="true">
+        <span
+          className="lp-fx lp-fx-lamp"
+          style={sceneRect(150, 150, 560, 640)}
+        />
+        <span
+          className="lp-fx lp-fx-screen"
+          style={sceneRect(245, 200, 545, 420)}
+        />
+        <span className="lp-fx lp-fx-bulb" style={sceneSpot(1058, 195, 330)} />
+        <SceneLayer name="plant-left" />
+        <SceneLayer name="plant-right" />
+        <SceneLayer name="tail" />
+        <SceneLayer name="head">
+          <div className="lp-notes">
+            <Note index={0} />
+            <Note index={1} />
+            <Note index={2} />
+          </div>
+        </SceneLayer>
+        <SceneLayer name="pupil-left" />
+        <SceneLayer name="pupil-right" />
+        <SceneLayer name="bulb" />
+        <Sparkle x={1150} y={128} size={30} delay={0} />
+        <Sparkle x={982} y={252} size={22} delay={0.9} />
+        <Sparkle x={1132} y={262} size={18} delay={1.7} />
+      </div>
+    </div>
+  );
+}
 
 function Arrow({ down = false }: { down?: boolean }) {
   return (
@@ -193,13 +358,7 @@ export default function Home() {
               <div className="lp-hero-art">
                 <span className="lp-art-note">好奇心，持續開工！</span>
                 <div className="lp-hero-figure">
-                  <img
-                    src={`${base}images/leonard-lion-studio.png`}
-                    alt="戴眼鏡與耳機的獅子 Leonard，在程式與音樂工作桌前創作"
-                    width="1536"
-                    height="1024"
-                    fetchPriority="high"
-                  />
+                  <LionScene />
                 </div>
                 <span className="lp-art-caption">
                   LEONARD’S LITTLE BIG IDEAS
@@ -348,13 +507,19 @@ export default function Home() {
           <div className="lp-container">
             <div className="lp-about-grid">
               <figure className="lp-portrait" data-reveal="tilt">
-                <img
-                  src={`${base}images/leonard-it-matters-2025.jpg`}
-                  alt="Leonard Lai 賴泰元於 2025 IT Matters Awards 頒獎典禮現場"
-                  width="7656"
-                  height="5366"
-                  loading="lazy"
-                />
+                <Picture
+                  stem="images/leonard-it-matters-2025"
+                  widths={[800, 1200, 1600]}
+                  sizes={portraitSizes}
+                >
+                  <img
+                    src={`${base}images/leonard-it-matters-2025.jpg`}
+                    alt="Leonard Lai 賴泰元於 2025 IT Matters Awards 頒獎典禮現場"
+                    width="7656"
+                    height="5366"
+                    loading="lazy"
+                  />
+                </Picture>
                 <figcaption>
                   <span>HELLO, I’M LEONARD.</span>
                   <span>IT Matters Awards · 2025</span>
@@ -706,14 +871,20 @@ export default function Home() {
               </a>
             </div>
             <div className="lp-toolbox-preview">
-              <img
-                data-reveal="scale"
-                src={`${base}tools/maker-street.png`}
-                alt="Leonard 工具小舖的漫畫創作街景"
-                width="2172"
-                height="724"
-                loading="lazy"
-              />
+              <Picture
+                stem="tools/maker-street"
+                widths={[1086, 2172]}
+                sizes={streetSizes}
+              >
+                <img
+                  data-reveal="scale"
+                  src={`${base}tools/maker-street.png`}
+                  alt="Leonard 工具小舖的漫畫創作街景"
+                  width="2172"
+                  height="724"
+                  loading="lazy"
+                />
+              </Picture>
               <div className="lp-tool-tags">
                 <a
                   href={`${base}tools/?category=video#collection`}
