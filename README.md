@@ -26,7 +26,8 @@ npm run preview
 
 ## 個人內容與 SEO
 
-- `src/Home.tsx`：首頁內容與互動；`src/portfolio.css`：沿用工具小舖 tokens 的首頁版面。
+- `src/Home.tsx`：首頁內容與互動；`src/portfolio.css`：沿用工具小舖 tokens 的首頁版面與動態。
+- `src/motion.ts`：兩頁共用的動態 hooks（捲動揭示、指標視差、捲動進度後備、導覽定位、3D 傾斜）。
 - `src/data/profile.ts`：姓名、平台連結與音樂作品。
 - `docs/content-sources.md`：公開事實來源、角色歸屬、本人提供的照片與插畫出處。
 - `src/entry-server.tsx` 與 `scripts/prerender.mjs`：建置時產生兩頁完整 HTML 與 JSON-LD，瀏覽器再 hydrate；停用 JavaScript 仍可閱讀及使用連結。

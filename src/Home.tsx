@@ -1,14 +1,24 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { profile, tracks } from "./data/profile";
+import {
+  useHeroParallax,
+  useReveal,
+  useScrollProgress,
+  useScrollSpy,
+  useScrolled,
+  useTilt,
+} from "./motion";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
+const navSections = ["work", "about", "music"] as const;
+const interests = ["軟體工程", "AI 實作", "音樂創作", "好工具分享"];
 
 function Arrow({ down = false }: { down?: boolean }) {
   return (
     <svg
-      className="lp-arrow"
+      className={down ? "lp-arrow lp-arrow-down" : "lp-arrow"}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -24,10 +34,12 @@ function External({
   href,
   children,
   className = "lp-text-link",
+  ...rest
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  "data-reveal"?: string;
 }) {
   return (
     <a
@@ -35,6 +47,7 @@ function External({
       className={className}
       target="_blank"
       rel="noopener noreferrer"
+      {...rest}
     >
       {children}
       <Arrow />
@@ -56,33 +69,55 @@ function SkillIcon({ kind }: { kind: "code" | "spark" | "music" }) {
     >
       {kind === "code" ? (
         <>
-          <rect x="4" y="8" width="40" height="32" rx="5" />
-          <path d="M4 17h40m-26 7-5 5 5 5m12-10 5 5-5 5m-7 0 2-10" />
+          <rect x="4" y="8" width="40" height="32" rx="5" pathLength={1} />
+          <path
+            d="M4 17h40m-26 7-5 5 5 5m12-10 5 5-5 5m-7 0 2-10"
+            pathLength={1}
+          />
         </>
       ) : kind === "spark" ? (
         <>
-          <path d="m24 5 5 13 13 6-13 5-5 14-5-14-13-5 13-6Z" />
-          <path d="m38 3 1 5 5 1m-39 29 4 1 1 5" />
+          <path d="m24 5 5 13 13 6-13 5-5 14-5-14-13-5 13-6Z" pathLength={1} />
+          <path d="m38 3 1 5 5 1m-39 29 4 1 1 5" pathLength={1} />
         </>
       ) : (
         <>
-          <path d="M20 34V12l20-5v22M20 20l20-5" />
-          <ellipse cx="13" cy="36" rx="7" ry="5" />
-          <ellipse cx="33" cy="31" rx="7" ry="5" />
+          <path d="M20 34V12l20-5v22M20 20l20-5" pathLength={1} />
+          <ellipse cx="13" cy="36" rx="7" ry="5" pathLength={1} />
+          <ellipse cx="33" cy="31" rx="7" ry="5" pathLength={1} />
         </>
       )}
     </svg>
   );
 }
 
+function InterestGroup({ hidden = false }: { hidden?: boolean }) {
+  return (
+    <ul className="lp-marquee-group" aria-hidden={hidden || undefined}>
+      {interests.map((item) => (
+        <li key={item}>
+          {item}
+          <b aria-hidden="true">✦</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function Home() {
   const [showPlayer, setShowPlayer] = useState(false);
+  const heroRef = useHeroParallax<HTMLElement>();
+  const scrolled = useScrolled(24);
+  const activeSection = useScrollSpy(navSections);
+  useScrollProgress(heroRef);
+  useReveal(null);
+  useTilt(6);
   return (
     <div className="portfolio-page" id="top">
       <a className="toolbox-skip" href="#main">
         跳至主要內容
       </a>
-      <header className="lp-header">
+      <header className={scrolled ? "lp-header is-scrolled" : "lp-header"}>
         <div className="lp-container lp-header-inner">
           <a
             className="lp-brand"
@@ -97,9 +132,24 @@ export default function Home() {
             </span>
           </a>
           <nav aria-label="主要導覽">
-            <a href="#work">作品</a>
-            <a href="#about">關於我</a>
-            <a href="#music">音樂</a>
+            <a
+              href="#work"
+              aria-current={activeSection === "work" ? "location" : undefined}
+            >
+              作品
+            </a>
+            <a
+              href="#about"
+              aria-current={activeSection === "about" ? "location" : undefined}
+            >
+              關於我
+            </a>
+            <a
+              href="#music"
+              aria-current={activeSection === "music" ? "location" : undefined}
+            >
+              音樂
+            </a>
             <a className="lp-nav-tools" href={`${base}tools/`}>
               工具小舖 <Arrow />
             </a>
@@ -108,55 +158,62 @@ export default function Home() {
       </header>
 
       <main id="main">
-        <section className="lp-hero" aria-labelledby="hero-title">
-          <div className="lp-container lp-hero-grid">
-            <div className="lp-hero-copy">
-              <p className="lp-eyebrow lp-hero-eyebrow">
-                <span /> SOFTWARE × AI × MUSIC
-              </p>
-              <h1 id="hero-title">
-                Leonard Lai<span>賴泰元</span>
-              </h1>
-              <p className="lp-hero-statement">
-                聽故事、寫故事，
-                <br />
-                一起創造故事。
-              </p>
-              <p className="lp-hero-intro">
-                我是 Leonard，一名軟體工程師，也是一個喜歡故事的人。
-                <br className="lp-desktop-break" />
-                用技術與音樂，把聽見的需要，變成能一起完成的作品。
-              </p>
-              <div className="lp-actions">
-                <a href="#work" className="lp-button">
-                  看看故事與作品 <Arrow down />
-                </a>
-                <a href="#contact" className="lp-hero-link">
-                  分享你的故事 <Arrow down />
-                </a>
+        <section className="lp-hero" aria-labelledby="hero-title" ref={heroRef}>
+          <div className="lp-hero-stage">
+            <div className="lp-container lp-hero-grid">
+              <div className="lp-hero-copy">
+                <p className="lp-eyebrow lp-hero-eyebrow">
+                  <span /> SOFTWARE × AI × MUSIC
+                </p>
+                <h1 id="hero-title">
+                  Leonard Lai<span>賴泰元</span>
+                </h1>
+                <p className="lp-hero-statement">
+                  <span className="lp-line">
+                    <span>聽故事、寫故事，</span>
+                  </span>
+                  <span className="lp-line">
+                    <span>一起創造故事。</span>
+                  </span>
+                </p>
+                <p className="lp-hero-intro">
+                  我是 Leonard，一名軟體工程師，也是一個喜歡故事的人。
+                  <br className="lp-desktop-break" />
+                  用技術與音樂，把聽見的需要，變成能一起完成的作品。
+                </p>
+                <div className="lp-actions">
+                  <a href="#work" className="lp-button">
+                    看看故事與作品 <Arrow down />
+                  </a>
+                  <a href="#contact" className="lp-hero-link">
+                    分享你的故事 <Arrow down />
+                  </a>
+                </div>
               </div>
-            </div>
-            <div className="lp-hero-art">
-              <span className="lp-art-note">好奇心，持續開工！</span>
-              <img
-                src={`${base}images/leonard-lion-studio.png`}
-                alt="戴眼鏡與耳機的獅子 Leonard，在程式與音樂工作桌前創作"
-                width="1536"
-                height="1024"
-                fetchPriority="high"
-              />
-              <span className="lp-art-caption">LEONARD’S LITTLE BIG IDEAS</span>
+              <div className="lp-hero-art">
+                <span className="lp-art-note">好奇心，持續開工！</span>
+                <div className="lp-hero-figure">
+                  <img
+                    src={`${base}images/leonard-lion-studio.png`}
+                    alt="戴眼鏡與耳機的獅子 Leonard，在程式與音樂工作桌前創作"
+                    width="1536"
+                    height="1024"
+                    fetchPriority="high"
+                  />
+                </div>
+                <span className="lp-art-caption">
+                  LEONARD’S LITTLE BIG IDEAS
+                </span>
+              </div>
             </div>
           </div>
           <div className="lp-interest-strip" aria-label="創作領域">
-            <div className="lp-container">
-              <span>軟體工程</span>
-              <b aria-hidden="true">✦</b>
-              <span>AI 實作</span>
-              <b aria-hidden="true">✦</b>
-              <span>音樂創作</span>
-              <b aria-hidden="true">✦</b>
-              <span>好工具分享</span>
+            <div className="lp-marquee">
+              <div className="lp-marquee-track">
+                {[0, 1, 2, 3, 4, 5].map((copy) => (
+                  <InterestGroup key={copy} hidden={copy > 0} />
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -168,22 +225,22 @@ export default function Home() {
         >
           <div className="lp-container">
             <div className="lp-section-heading">
-              <div>
+              <div data-reveal="blur">
                 <p className="lp-eyebrow">SELECTED WORK</p>
                 <h2 id="work-title">
                   讓想法，<span className="lp-underline">真正派上用場。</span>
                 </h2>
               </div>
-              <p>
+              <p data-reveal="">
                 從家庭財務到醫療現場，
                 <br />
                 把技術放進真實的問題裡。
               </p>
             </div>
-            <article className="lp-featured-project">
+            <article className="lp-featured-project" data-reveal="scale">
               <div className="lp-project-art" aria-hidden="true">
                 <span className="lp-project-sticker">2025 IT MATTERS</span>
-                <div className="lp-browser-card">
+                <div className="lp-browser-card" data-tilt="">
                   <div className="lp-browser-bar">
                     <i />
                     <i />
@@ -246,7 +303,7 @@ export default function Home() {
               </div>
             </article>
 
-            <article className="lp-medical-project">
+            <article className="lp-medical-project" data-reveal="">
               <div className="lp-medical-symbol" aria-hidden="true">
                 <svg
                   viewBox="0 0 100 100"
@@ -290,7 +347,7 @@ export default function Home() {
         >
           <div className="lp-container">
             <div className="lp-about-grid">
-              <figure className="lp-portrait">
+              <figure className="lp-portrait" data-reveal="tilt">
                 <img
                   src={`${base}images/leonard-it-matters-2025.jpg`}
                   alt="Leonard Lai 賴泰元於 2025 IT Matters Awards 頒獎典禮現場"
@@ -304,24 +361,28 @@ export default function Home() {
                 </figcaption>
               </figure>
               <div className="lp-about-copy">
-                <p className="lp-eyebrow">ABOUT ME</p>
-                <h2 id="about-title">
+                <p className="lp-eyebrow" data-reveal="">
+                  ABOUT ME
+                </p>
+                <h2 id="about-title" data-reveal="blur">
                   先聽懂一個人，
                   <br />
                   再一起寫下一段。
                 </h2>
-                <p>
+                <p data-reveal="">
                   我是賴泰元，英文名字是 Leonard
                   Lai。我喜歡聽故事、寫故事、創造故事。
                   每個人的經歷、每個團隊正在面對的問題，都有值得被理解的脈絡；對我來說，好的作品從願意傾聽開始。
                 </p>
-                <p>
+                <p data-reveal="">
                   我以 Java 後端開發為基礎，投入雲端架構與 AI 應用，也以
                   LeonardLai 的名字發表音樂。
                   聽懂需要之後，用程式把想法做出來，用文字與旋律留下感受，和不同的人一起創造接下來的故事。
                 </p>
-                <p className="lp-alumni">輔仁大學資訊管理學系 · 第 32 屆系友</p>
-                <div className="lp-actions">
+                <p className="lp-alumni" data-reveal="">
+                  輔仁大學資訊管理學系 · 第 32 屆系友
+                </p>
+                <div className="lp-actions" data-reveal="">
                   <External
                     href={links.linkedin}
                     className="lp-button lp-button-small"
@@ -332,7 +393,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="lp-current-work">
+            <div className="lp-current-work" data-reveal="">
               <div>
                 <p className="lp-eyebrow">CURRENT WORK</p>
                 <h3>目前工作 · eGroupAI</h3>
@@ -344,7 +405,7 @@ export default function Home() {
               <External href={links.company}>了解目前工作的業務</External>
             </div>
             <div className="lp-skills" aria-label="能力與專長">
-              <div>
+              <div data-reveal="">
                 <SkillIcon kind="code" />
                 <h3>從後端到雲端</h3>
                 <p>
@@ -353,7 +414,7 @@ export default function Home() {
                 </p>
                 <span>SOFTWARE ENGINEERING</span>
               </div>
-              <div>
+              <div data-reveal="">
                 <SkillIcon kind="spark" />
                 <h3>把 AI 放進流程</h3>
                 <p>
@@ -362,7 +423,7 @@ export default function Home() {
                 </p>
                 <span>APPLIED AI</span>
               </div>
-              <div>
+              <div data-reveal="">
                 <SkillIcon kind="music" />
                 <h3>為日常留下聲音</h3>
                 <p>
@@ -372,7 +433,11 @@ export default function Home() {
               </div>
             </div>
             <div className="lp-values-grid">
-              <section className="lp-values" aria-labelledby="values-title">
+              <section
+                className="lp-values"
+                aria-labelledby="values-title"
+                data-reveal=""
+              >
                 <p className="lp-eyebrow">ROOTED IN TAIWAN</p>
                 <h3 id="values-title">
                   立足台灣，
@@ -395,6 +460,7 @@ export default function Home() {
               <article
                 className="lp-evaluation"
                 aria-labelledby="evaluation-title"
+                data-reveal="scale"
               >
                 <p className="lp-eyebrow">TRUSTWORTHY AI · 實務經驗</p>
                 <h3 id="evaluation-title">
@@ -426,14 +492,16 @@ export default function Home() {
         >
           <div className="lp-container lp-journey-grid">
             <div>
-              <p className="lp-eyebrow">MILESTONES & CREDENTIAL</p>
-              <h2 id="journey-title">
-                沿路累積的
-                <br />
-                <span className="lp-underline">實作與經歷。</span>
-              </h2>
+              <div data-reveal="blur">
+                <p className="lp-eyebrow">MILESTONES & CREDENTIAL</p>
+                <h2 id="journey-title">
+                  沿路累積的
+                  <br />
+                  <span className="lp-underline">實作與經歷。</span>
+                </h2>
+              </div>
               <ol className="lp-timeline">
-                <li>
+                <li data-reveal="">
                   <time dateTime="2026-04">2026.04</time>
                   <div>
                     <h3>醫療 AI 專業技術指導</h3>
@@ -443,7 +511,7 @@ export default function Home() {
                     </p>
                   </div>
                 </li>
-                <li>
+                <li data-reveal="">
                   <time dateTime="2025-12">2025.12</time>
                   <div>
                     <h3>好理家在 · 社會影響力獎</h3>
@@ -453,7 +521,7 @@ export default function Home() {
                     </p>
                   </div>
                 </li>
-                <li>
+                <li data-reveal="">
                   <time dateTime="2024-04">2024.04</time>
                   <div>
                     <h3>取得 AWS 雲端架構認證</h3>
@@ -462,7 +530,7 @@ export default function Home() {
                     </p>
                   </div>
                 </li>
-                <li>
+                <li data-reveal="">
                   <time dateTime="2024">2024 起</time>
                   <div>
                     <h3>以 LeonardLai 發表音樂</h3>
@@ -474,6 +542,8 @@ export default function Home() {
             <aside
               className="lp-certificate"
               aria-labelledby="certificate-title"
+              data-reveal="scale"
+              data-tilt=""
             >
               <span className="lp-cert-label">CLOUD ARCHITECTURE</span>
               <img
@@ -524,7 +594,7 @@ export default function Home() {
         >
           <div className="lp-container">
             <div className="lp-section-heading">
-              <div>
+              <div data-reveal="blur">
                 <p className="lp-eyebrow">ON A DIFFERENT FREQUENCY</p>
                 <h2 id="music-title">
                   程式之外，
@@ -532,7 +602,7 @@ export default function Home() {
                   還有我的<span>播放清單。</span>
                 </h2>
               </div>
-              <p>
+              <p data-reveal="">
                 另一種創作語言，
                 <br />
                 在音樂平台上搜尋 LeonardLai。
@@ -540,7 +610,11 @@ export default function Home() {
             </div>
             <div className="lp-records">
               {tracks.map((track) => (
-                <article className="lp-record" key={track.id}>
+                <article
+                  className="lp-record"
+                  key={track.id}
+                  data-reveal="scale"
+                >
                   <a
                     className="lp-record-cover"
                     href={`https://open.spotify.com/track/${track.id}`}
@@ -568,20 +642,20 @@ export default function Home() {
                 </article>
               ))}
             </div>
-            <div className="lp-music-links">
+            <div className="lp-music-links" data-reveal="">
               <span>選一個喜歡的平台</span>
               <External href={links.spotify}>Spotify</External>
               <External href={links.apple}>Apple Music</External>
               <External href={links.youtubeMusic}>YouTube Music</External>
               <External href={links.amazon}>Amazon Music</External>
             </div>
-            <div className="lp-channel-link">
+            <div className="lp-channel-link" data-reveal="">
               <span>更多影音與創作紀錄</span>
               <External href={links.youtube}>賴泰元的 YouTube 頻道</External>
             </div>
-            <div className="lp-player-area">
+            <div className="lp-player-area" data-reveal="">
               {showPlayer ? (
-                <>
+                <div className="lp-player-frame">
                   <iframe
                     title="LeonardLai 的 Spotify 音樂播放器"
                     src="https://open.spotify.com/embed/artist/4Spm3n5CXCuQGDG1Gg76QG?utm_source=generator&theme=0"
@@ -594,7 +668,7 @@ export default function Home() {
                     播放器無法顯示時，可直接前往{" "}
                     <External href={links.spotify}>Spotify 聆聽</External>。
                   </p>
-                </>
+                </div>
               ) : (
                 <button
                   className="lp-button lp-button-small"
@@ -614,23 +688,26 @@ export default function Home() {
         >
           <div className="lp-container lp-toolbox-grid">
             <div>
-              <p className="lp-eyebrow">LEONARD’S TOOLBOX</p>
-              <h2 id="tools-title">
-                好工具，
-                <br />
-                <span className="lp-underline">一起玩！</span>
-              </h2>
-              <p>
+              <div data-reveal="blur">
+                <p className="lp-eyebrow">LEONARD’S TOOLBOX</p>
+                <h2 id="tools-title">
+                  好工具，
+                  <br />
+                  <span className="lp-underline">一起玩！</span>
+                </h2>
+              </div>
+              <p data-reveal="">
                 做影片、玩簡報、探索程式碼與地圖。
                 <br />
                 把用過的好工具，放進你的創作口袋。
               </p>
-              <a className="lp-button" href={`${base}tools/`}>
+              <a className="lp-button" href={`${base}tools/`} data-reveal="">
                 逛逛工具小舖 <Arrow />
               </a>
             </div>
             <div className="lp-toolbox-preview">
               <img
+                data-reveal="scale"
                 src={`${base}tools/maker-street.png`}
                 alt="Leonard 工具小舖的漫畫創作街景"
                 width="2172"
@@ -638,14 +715,30 @@ export default function Home() {
                 loading="lazy"
               />
               <div className="lp-tool-tags">
-                <a href={`${base}tools/?category=video#collection`}>
+                <a
+                  href={`${base}tools/?category=video#collection`}
+                  data-reveal=""
+                >
                   影片與動畫
                 </a>
-                <a href={`${base}tools/?category=slides#collection`}>
+                <a
+                  href={`${base}tools/?category=slides#collection`}
+                  data-reveal=""
+                >
                   簡報與表達
                 </a>
-                <a href={`${base}tools/?category=code#collection`}>程式與 AI</a>
-                <a href={`${base}tools/?category=map#collection`}>地圖與資料</a>
+                <a
+                  href={`${base}tools/?category=code#collection`}
+                  data-reveal=""
+                >
+                  程式與 AI
+                </a>
+                <a
+                  href={`${base}tools/?category=map#collection`}
+                  data-reveal=""
+                >
+                  地圖與資料
+                </a>
               </div>
             </div>
           </div>
@@ -654,29 +747,41 @@ export default function Home() {
         <section className="lp-section lp-press" aria-labelledby="press-title">
           <div className="lp-container">
             <div className="lp-section-heading">
-              <div>
+              <div data-reveal="blur">
                 <p className="lp-eyebrow">IN THE NEWS</p>
                 <h2 id="press-title">作品背後的紀錄</h2>
               </div>
             </div>
             <div className="lp-press-list">
-              <External href={links.university} className="lp-press-row">
+              <External
+                href={links.university}
+                className="lp-press-row"
+                data-reveal=""
+              >
                 <span>輔仁大學資管系</span>
                 <strong>系友投入好理家在開發，團隊獲 AI 社會影響力獎</strong>
                 <time dateTime="2025-12-10">2025.12</time>
               </External>
-              <External href={links.award} className="lp-press-row">
+              <External
+                href={links.award}
+                className="lp-press-row"
+                data-reveal=""
+              >
                 <span>好理家在・馴錢師</span>
                 <strong>2025 IT Matters Awards 獲獎消息</strong>
                 <time dateTime="2025-12-09">2025.12</time>
               </External>
-              <External href={links.hospital} className="lp-press-row">
+              <External
+                href={links.hospital}
+                className="lp-press-row"
+                data-reveal=""
+              >
                 <span>台大癌醫中心分院</span>
                 <strong>乳房外科團隊獲「AI 賦能健康進行式」銅獎</strong>
                 <time dateTime="2026-04-23">2026.04</time>
               </External>
             </div>
-            <p className="lp-press-footnote">
+            <p className="lp-press-footnote" data-reveal="">
               也可閱讀輔大資管系的{" "}
               <External href={links.facebook}>Facebook 報導</External>。
             </p>
@@ -689,7 +794,7 @@ export default function Home() {
           aria-labelledby="contact-title"
         >
           <div className="lp-container">
-            <div>
+            <div data-reveal="blur">
               <p className="lp-eyebrow">EVERY STORY STARTS WITH A HELLO</p>
               <h2 id="contact-title">
                 你的故事，
@@ -697,7 +802,7 @@ export default function Home() {
                 我也想聽。
               </h2>
             </div>
-            <div>
+            <div data-reveal="">
               <p>
                 一段正在經歷的日常、一個想解決的問題，
                 <br />

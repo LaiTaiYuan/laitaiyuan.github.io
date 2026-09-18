@@ -55,6 +55,12 @@
     />
     <title>Leonard Lai 賴泰元｜軟體工程、AI 應用與音樂創作</title>
     <!-- structured-data -->
+    <script>
+      // Marks the page for reveal-on-scroll before the first paint, so sections
+      // below the fold never flash before fading in (see useReveal in motion.ts).
+      if ("IntersectionObserver" in window)
+        document.documentElement.classList.add("tb-js");
+    </script>
   </head>
   <body>
     <div id="root"></div>

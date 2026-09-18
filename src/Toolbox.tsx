@@ -1,4 +1,5 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
+import { useHeroParallax, useReveal } from "./motion";
 import type { CSSProperties, ReactNode } from "react";
 import catalog from "./data/toolbox.json";
 import snapshot from "./data/toolboxReleases.json";
@@ -340,75 +341,6 @@ function ToolboxScene() {
       </div>
     </div>
   );
-}
-
-// Reveal on scroll: elements marked data-reveal fade up the first time they
-// enter the viewport; those arriving together stagger a little.
-function useReveal(key: unknown) {
-  useEffect(() => {
-    if (!("IntersectionObserver" in window)) return;
-    document.documentElement.classList.add("tb-js");
-    const targets = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-in)"),
-    );
-    if (!targets.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let order = 0;
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const element = entry.target as HTMLElement;
-          element.style.setProperty(
-            "--reveal-delay",
-            `${Math.min(order++, 6) * 85}ms`,
-          );
-          element.classList.add("is-in");
-          observer.unobserve(element);
-        }
-      },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
-    );
-    targets.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [key]);
-}
-
-// Pointer parallax on the hero: the street and the clouds drift a few pixels
-// towards the cursor (fine pointers only, off under reduced motion).
-function useHeroParallax() {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const hero = ref.current;
-    if (!hero) return;
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
-      return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let frame = 0;
-    const set = (x: number, y: number) => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        hero.style.setProperty("--tb-px", x.toFixed(3));
-        hero.style.setProperty("--tb-py", y.toFixed(3));
-      });
-    };
-    const move = (event: PointerEvent) => {
-      if (reduced.matches) return;
-      const rect = hero.getBoundingClientRect();
-      set(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        ((event.clientY - rect.top) / rect.height) * 2 - 1,
-      );
-    };
-    const leave = () => set(0, 0);
-    hero.addEventListener("pointermove", move);
-    hero.addEventListener("pointerleave", leave);
-    return () => {
-      cancelAnimationFrame(frame);
-      hero.removeEventListener("pointermove", move);
-      hero.removeEventListener("pointerleave", leave);
-    };
-  }, []);
-  return ref;
 }
 
 function ToolPreview({ tool }: { tool: Tool }) {
@@ -833,7 +765,7 @@ export default function Toolbox() {
     () => "all",
   );
   useReveal(category);
-  const heroRef = useHeroParallax();
+  const heroRef = useHeroParallax<HTMLElement>();
   const visibleTools = catalog.filter(
     (tool) => category === "all" || tool.category === category,
   );
