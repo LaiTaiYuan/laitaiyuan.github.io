@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import lion from "./data/lionScene.json";
 import { profile, tracks } from "./data/profile";
 import {
+  useCursorBadge,
+  useDaypart,
   useHeroParallax,
+  useMagnetic,
   useReveal,
   useScrollProgress,
   useScrollSpy,
@@ -14,7 +17,12 @@ import {
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
 const navSections = ["work", "about", "music"] as const;
-const interests = ["軟體工程", "AI 實作", "音樂創作", "好工具分享"];
+const interests = [
+  ["軟體工程", "code"],
+  ["AI 實作", "spark"],
+  ["音樂創作", "music"],
+  ["好工具分享", "tools"],
+] as const;
 const heroSizes = "(max-width: 760px) 100vw, (max-width: 1400px) 55vw, 720px";
 const portraitSizes =
   "(max-width: 760px) 100vw, (max-width: 1400px) 45vw, 600px";
@@ -205,6 +213,8 @@ function External({
   children: ReactNode;
   className?: string;
   "data-reveal"?: string;
+  "data-cursor"?: string;
+  "data-magnet"?: string;
 }) {
   return (
     <a
@@ -221,7 +231,7 @@ function External({
   );
 }
 
-function SkillIcon({ kind }: { kind: "code" | "spark" | "music" }) {
+function SkillIcon({ kind }: { kind: "code" | "spark" | "music" | "tools" }) {
   return (
     <svg
       viewBox="0 0 48 48"
@@ -245,11 +255,20 @@ function SkillIcon({ kind }: { kind: "code" | "spark" | "music" }) {
           <path d="m24 5 5 13 13 6-13 5-5 14-5-14-13-5 13-6Z" pathLength={1} />
           <path d="m38 3 1 5 5 1m-39 29 4 1 1 5" pathLength={1} />
         </>
-      ) : (
+      ) : kind === "music" ? (
         <>
           <path d="M20 34V12l20-5v22M20 20l20-5" pathLength={1} />
           <ellipse cx="13" cy="36" rx="7" ry="5" pathLength={1} />
           <ellipse cx="33" cy="31" rx="7" ry="5" pathLength={1} />
+        </>
+      ) : (
+        <>
+          <path d="M6 20h36v20a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3Z" pathLength={1} />
+          <path
+            d="M17 20v-6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6M6 29h36"
+            pathLength={1}
+          />
+          <path d="M20 26v6m8-6v6" pathLength={1} />
         </>
       )}
     </svg>
@@ -259,8 +278,9 @@ function SkillIcon({ kind }: { kind: "code" | "spark" | "music" }) {
 function InterestGroup({ hidden = false }: { hidden?: boolean }) {
   return (
     <ul className="lp-marquee-group" aria-hidden={hidden || undefined}>
-      {interests.map((item) => (
+      {interests.map(([item, icon]) => (
         <li key={item}>
+          <SkillIcon kind={icon} />
           {item}
           <b aria-hidden="true">✦</b>
         </li>
@@ -274,11 +294,16 @@ export default function Home() {
   const heroRef = useHeroParallax<HTMLElement>();
   const scrolled = useScrolled(24);
   const activeSection = useScrollSpy(navSections);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const daypart = useDaypart();
   useScrollProgress(heroRef);
   useReveal(null);
   useTilt(6);
+  useMagnetic();
+  useCursorBadge(cursorRef);
   return (
     <div className="portfolio-page" id="top">
+      <div className="lp-cursor" ref={cursorRef} aria-hidden="true" />
       <a className="toolbox-skip" href="#main">
         跳至主要內容
       </a>
@@ -323,7 +348,12 @@ export default function Home() {
       </header>
 
       <main id="main">
-        <section className="lp-hero" aria-labelledby="hero-title" ref={heroRef}>
+        <section
+          className="lp-hero"
+          aria-labelledby="hero-title"
+          ref={heroRef}
+          data-daypart={daypart}
+        >
           <div className="lp-hero-stage">
             <div className="lp-container lp-hero-grid">
               <div className="lp-hero-copy">
@@ -347,7 +377,7 @@ export default function Home() {
                   用技術與音樂，把聽見的需要，變成能一起完成的作品。
                 </p>
                 <div className="lp-actions">
-                  <a href="#work" className="lp-button">
+                  <a href="#work" className="lp-button" data-magnet="">
                     看看故事與作品 <Arrow down />
                   </a>
                   <a href="#contact" className="lp-hero-link">
@@ -413,11 +443,15 @@ export default function Home() {
                       stroke="currentColor"
                       strokeWidth="5"
                     >
-                      <path d="m16 45 44-32 44 32M28 38v45h64V38M49 83V59h22v24" />
+                      <path
+                        d="m16 45 44-32 44 32M28 38v45h64V38M49 83V59h22v24"
+                        pathLength={1}
+                      />
                       <path
                         d="M71 31c-9-14-26-3-20 8l20 17 20-17c6-11-11-22-20-8Z"
                         fill="var(--tb-coral)"
                         strokeWidth="3"
+                        pathLength={1}
                       />
                     </svg>
                     <strong>好理家在</strong>
@@ -786,16 +820,22 @@ export default function Home() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`在 Spotify 聆聽 ${track.title}（另開分頁）`}
+                    data-cursor="▶ PLAY"
                   >
-                    <img
-                      src={track.image}
-                      alt={`${track.title} 單曲封面`}
-                      width="300"
-                      height="300"
-                      loading="lazy"
-                    />
-                    <span className="lp-play" aria-hidden="true">
-                      ▶
+                    <span className="lp-vinyl" aria-hidden="true">
+                      <span />
+                    </span>
+                    <span className="lp-record-sleeve">
+                      <img
+                        src={track.image}
+                        alt={`${track.title} 單曲封面`}
+                        width="300"
+                        height="300"
+                        loading="lazy"
+                      />
+                      <span className="lp-play" aria-hidden="true">
+                        ▶
+                      </span>
                     </span>
                   </a>
                   <div className="lp-record-meta">
@@ -866,25 +906,37 @@ export default function Home() {
                 <br />
                 把用過的好工具，放進你的創作口袋。
               </p>
-              <a className="lp-button" href={`${base}tools/`} data-reveal="">
+              <a
+                className="lp-button"
+                href={`${base}tools/`}
+                data-reveal=""
+                data-magnet=""
+              >
                 逛逛工具小舖 <Arrow />
               </a>
             </div>
             <div className="lp-toolbox-preview">
-              <Picture
-                stem="tools/maker-street"
-                widths={[1086, 2172]}
-                sizes={streetSizes}
+              <a
+                className="lp-toolbox-preview-link"
+                href={`${base}tools/`}
+                aria-label="前往工具小舖"
+                data-cursor="逛逛 ↗"
               >
-                <img
-                  data-reveal="scale"
-                  src={`${base}tools/maker-street.png`}
-                  alt="Leonard 工具小舖的漫畫創作街景"
-                  width="2172"
-                  height="724"
-                  loading="lazy"
-                />
-              </Picture>
+                <Picture
+                  stem="tools/maker-street"
+                  widths={[1086, 2172]}
+                  sizes={streetSizes}
+                >
+                  <img
+                    data-reveal="scale"
+                    src={`${base}tools/maker-street.png`}
+                    alt="Leonard 工具小舖的漫畫創作街景"
+                    width="2172"
+                    height="724"
+                    loading="lazy"
+                  />
+                </Picture>
+              </a>
               <div className="lp-tool-tags">
                 <a
                   href={`${base}tools/?category=video#collection`}
@@ -928,6 +980,7 @@ export default function Home() {
                 href={links.university}
                 className="lp-press-row"
                 data-reveal=""
+                data-cursor="READ ↗"
               >
                 <span>輔仁大學資管系</span>
                 <strong>系友投入好理家在開發，團隊獲 AI 社會影響力獎</strong>
@@ -937,6 +990,7 @@ export default function Home() {
                 href={links.award}
                 className="lp-press-row"
                 data-reveal=""
+                data-cursor="READ ↗"
               >
                 <span>好理家在・馴錢師</span>
                 <strong>2025 IT Matters Awards 獲獎消息</strong>
@@ -946,6 +1000,7 @@ export default function Home() {
                 href={links.hospital}
                 className="lp-press-row"
                 data-reveal=""
+                data-cursor="READ ↗"
               >
                 <span>台大癌醫中心分院</span>
                 <strong>乳房外科團隊獲「AI 賦能健康進行式」銅獎</strong>
@@ -981,9 +1036,28 @@ export default function Home() {
                 <br />
                 不必先有完整的計畫，從一個故事開始就好。
               </p>
-              <External href={links.linkedin} className="lp-button">
+              <a
+                href={links.linkedin}
+                className="lp-button lp-button-plane"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-magnet=""
+              >
                 在 LinkedIn 分享故事
-              </External>
+                <span className="lp-plane-slot" aria-hidden="true">
+                  <Arrow />
+                  <svg className="lp-plane" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M3 11.5 21 3l-5 18-4.5-7.5L3 11.5Zm8.5 2L21 3"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinejoin="round"
+                      fill="var(--tb-white)"
+                    />
+                  </svg>
+                </span>
+                <span className="toolbox-sr-only">（另開分頁）</span>
+              </a>
             </div>
           </div>
         </section>

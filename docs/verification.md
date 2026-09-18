@@ -19,4 +19,6 @@
 
 首頁圖層與圖片更新另確認：獅子場景七個圖層靜止時與原圖逐像素一致；尾巴、燈泡挖空後的底圖在動作中無殘影；AVIF／WebP 由 `<picture>` 正確選用，首頁圖片總量由約 4.7MB 降至 1MB 以下；`@view-transition` 規則在 Chromium 解析成功；正式建置後兩頁 hydration 無錯誤。
 
+互動細節更新另確認：時間光線四種狀態、好理家在捲動組裝三個階段、黑膠滑出與旋轉、磁吸按鈕位移上限、游標標籤文字、紙飛機循環與跑馬燈圖示皆以 Chromium 截圖檢視；`overflow: clip` 取代 `hidden` 以免攔截 view() timeline；建置與 hydration 無錯誤。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。
