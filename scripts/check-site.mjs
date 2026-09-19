@@ -40,6 +40,11 @@ for (const route of ["index.html", "tools/index.html"]) {
 }
 const home = await readFile("dist/index.html", "utf8");
 assert.match(home, /<title>賴泰元 /, "Homepage title leads with 賴泰元");
+assert.match(
+  home,
+  /name="google-site-verification"/,
+  "Homepage keeps the Search Console verification tag",
+);
 assert(
   (home.match(/賴泰元/g) ?? []).length >= 20,
   "Homepage names 賴泰元 throughout",
