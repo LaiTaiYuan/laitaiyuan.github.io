@@ -813,7 +813,7 @@ export default function Toolbox() {
             </span>
           </a>
           <nav aria-label="工具小舖導覽">
-            <a href={publicBase} aria-label="Leonard 首頁">
+            <a href={publicBase} aria-label="賴泰元 Leonard Lai 個人首頁">
               個人首頁
             </a>
             <a href="#collection">工具收藏</a>
@@ -845,7 +845,7 @@ export default function Toolbox() {
                 <span className="toolbox-title-white">一起玩！</span>
               </h1>
               <p>
-                嗨，我是 Leonard，把用過的好工具分享給你。
+                嗨，我是賴泰元 Leonard，把用過的好工具分享給你。
                 <br />
                 做影片、玩簡報、探索程式碼，從這一站出發！
               </p>
@@ -989,6 +989,10 @@ export default function Toolbox() {
             </p>
             <p>
               我會慢慢把喜歡的工具放進來，整理用途、入門資源與更新。希望你逛完，也找到一個想試試的新玩具。
+            </p>
+            <p>
+              想多認識我的作品與故事，歡迎到
+              <a href={publicBase}>賴泰元 Leonard Lai 的個人首頁</a>。
             </p>
             <span className="toolbox-signature">
               Leonard{" "}

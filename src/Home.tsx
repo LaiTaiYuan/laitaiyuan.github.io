@@ -372,7 +372,7 @@ export default function Home() {
                   </span>
                 </p>
                 <p className="lp-hero-intro">
-                  我是 Leonard，一名軟體工程師，也是一個喜歡故事的人。
+                  我是賴泰元 Leonard，一名軟體工程師，也是一個喜歡故事的人。
                   <br className="lp-desktop-break" />
                   用技術與音樂，把聽見的需要，變成能一起完成的作品。
                 </p>
@@ -1064,7 +1064,7 @@ export default function Home() {
       </main>
       <footer className="lp-footer">
         <div className="lp-container">
-          <p>© {new Date().getUTCFullYear()} Leonard Lai 賴泰元</p>
+          <p>© {new Date().getUTCFullYear()} 賴泰元 Leonard Lai</p>
           <span>KEEP CURIOUS. KEEP CREATING.</span>
           <a href="#top">回到頂端 ↑</a>
         </div>

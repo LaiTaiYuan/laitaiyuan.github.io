@@ -9,15 +9,31 @@ export function render(page: "home" | "tools") {
 
 export function structuredData(page: "home" | "tools") {
   const personId = `${profile.url}#person`;
+  // Google keys the entity on `name`; the Chinese name people actually search
+  // for is primary, with the English, artist and romanized forms as aliases.
   const person = {
     "@type": "Person",
     "@id": personId,
-    name: "Leonard Lai 賴泰元",
-    alternateName: ["Leonard Lai", "賴泰元", "LeonardLai"],
+    name: profile.chineseName,
+    alternateName: [
+      profile.name,
+      profile.artistName,
+      profile.romanizedName,
+      `${profile.chineseName} ${profile.name}`,
+      `${profile.name} ${profile.chineseName}`,
+    ],
+    givenName: "泰元",
+    familyName: "賴",
+    additionalName: "Leonard",
     url: profile.url,
+    mainEntityOfPage: { "@id": `${profile.url}#profile` },
     image: `${profile.url}images/leonard-it-matters-2025.jpg`,
     description: profile.description,
-    jobTitle: "軟體工程師",
+    jobTitle: profile.jobTitle,
+    hasOccupation: { "@type": "Occupation", name: profile.jobTitle },
+    nationality: { "@type": "Country", name: "台灣" },
+    address: { "@type": "PostalAddress", addressCountry: "TW" },
+    knowsLanguage: ["zh-Hant", "en"],
     knowsAbout: [
       "Java",
       "Spring Boot",
@@ -40,7 +56,9 @@ export function structuredData(page: "home" | "tools") {
       profile.links.spotify,
       profile.links.apple,
       profile.links.youtube,
+      profile.links.youtubeMusic,
       profile.links.amazon,
+      profile.links.credly,
     ],
     subjectOf: publicEvidence.map((source) => ({
       "@type": "CreativeWork",
@@ -68,8 +86,15 @@ export function structuredData(page: "home" | "tools") {
         "@type": "WebSite",
         "@id": `${profile.url}#website`,
         url: profile.url,
-        name: "Leonard Lai 賴泰元",
+        name: `${profile.chineseName} ${profile.name}`,
+        alternateName: [
+          `${profile.chineseName}的創作基地`,
+          `${profile.chineseName}個人網站`,
+          `${profile.name} ${profile.chineseName}`,
+        ],
+        description: profile.description,
         inLanguage: "zh-Hant",
+        author: { "@id": personId },
         publisher: { "@id": personId },
       },
       page === "home"
@@ -77,9 +102,10 @@ export function structuredData(page: "home" | "tools") {
             "@type": "ProfilePage",
             "@id": `${profile.url}#profile`,
             url: profile.url,
-            name: "Leonard Lai 賴泰元｜軟體工程、AI 應用與音樂創作",
+            name: profile.title,
             description: profile.description,
             abstract: profile.story,
+            datePublished: profile.publishedAt,
             dateModified: profile.updatedAt,
             inLanguage: "zh-Hant",
             mainEntity: { "@id": personId },
@@ -120,11 +146,35 @@ export function structuredData(page: "home" | "tools") {
             "@type": "CollectionPage",
             "@id": `${profile.url}tools/#collection`,
             url: `${profile.url}tools/`,
-            name: "Leonard 的工具小舖",
+            name: `Leonard 的工具小舖｜${profile.chineseName}的好工具收藏`,
+            description: `${profile.chineseName}（${profile.name}）分享親自使用的開源與原始碼公開工具、入門資源與版本更新。`,
             inLanguage: "zh-Hant",
             author: { "@id": personId },
             isPartOf: { "@id": `${profile.url}#website` },
+            breadcrumb: { "@id": `${profile.url}tools/#breadcrumb` },
           },
+      ...(page === "tools"
+        ? [
+            {
+              "@type": "BreadcrumbList",
+              "@id": `${profile.url}tools/#breadcrumb`,
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: `${profile.chineseName} ${profile.name}`,
+                  item: profile.url,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "工具小舖",
+                  item: `${profile.url}tools/`,
+                },
+              ],
+            },
+          ]
+        : []),
     ],
   };
 }

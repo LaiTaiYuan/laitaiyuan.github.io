@@ -2,11 +2,15 @@ export const profile = {
   name: "Leonard Lai",
   chineseName: "賴泰元",
   artistName: "LeonardLai",
+  romanizedName: "Lai Tai-Yuan",
+  jobTitle: "軟體工程師",
   story: "聽故事、寫故事，一起創造故事。",
-  updatedAt: "2026-09-18T08:52:59Z",
+  publishedAt: "2026-09-18T08:52:59Z",
+  updatedAt: "2026-09-19T06:00:00Z",
   url: "https://laitaiyuan.github.io/",
+  title: "賴泰元 Leonard Lai｜軟體工程師、AI 應用與音樂創作",
   description:
-    "Leonard Lai 賴泰元，喜歡聽故事、寫故事、創造故事的軟體工程師與音樂創作者。立足台灣，分享 AI 應用、AIEC LLM 送測經驗、AWS 雲端認證與實作作品，邀你一起聊聊自己的故事。",
+    "賴泰元（Leonard Lai）是立足台灣的軟體工程師與音樂創作者，喜歡聽故事、寫故事、創造故事。分享 AI 應用、AIEC LLM 送測經驗、AWS 雲端認證與實作作品，邀你一起聊聊自己的故事。",
   links: {
     github: "https://github.com/LaiTaiYuan",
     linkedin:

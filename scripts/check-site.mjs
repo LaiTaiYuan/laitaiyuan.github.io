@@ -16,10 +16,34 @@ for (const route of ["index.html", "tools/index.html"]) {
   );
   assert(json, `${route} has structured data`);
   const graph = JSON.parse(json[1])["@graph"];
-  assert(graph.some((item) => item["@type"] === "Person"));
+  const person = graph.find((item) => item["@type"] === "Person");
+  assert(person, `${route} describes the person`);
+  assert.equal(person.name, "賴泰元", `${route} keys the person on 賴泰元`);
+  assert(person.alternateName.includes("Leonard Lai"));
   assert(html.length > 15000, `${route} contains real rendered content`);
+  // The name people search for must lead the title and description, and
+  // appear in the readable body copy, not only in metadata.
+  const title = html.match(/<title>(.*?)<\/title>/)[1];
+  const description = html.match(
+    /<meta\s+name="description"\s+content="(.*?)"/s,
+  )[1];
+  assert(title.includes("賴泰元"), `${route} title names 賴泰元`);
+  assert(
+    description.startsWith("賴泰元"),
+    `${route} description leads with 賴泰元`,
+  );
+  const body = html.slice(html.indexOf("<body"));
+  assert(
+    (body.match(/賴泰元/g) ?? []).length >= 3,
+    `${route} body copy names 賴泰元`,
+  );
 }
 const home = await readFile("dist/index.html", "utf8");
+assert.match(home, /<title>賴泰元 /, "Homepage title leads with 賴泰元");
+assert(
+  (home.match(/賴泰元/g) ?? []).length >= 20,
+  "Homepage names 賴泰元 throughout",
+);
 for (const content of [
   "賴泰元",
   "好理家在",

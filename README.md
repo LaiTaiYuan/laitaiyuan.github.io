@@ -39,9 +39,9 @@ npm run preview
 
 SEO 提供搜尋引擎所需的基礎內容與標記，不代表已被收錄或保證排名。Search Console 可由網站擁有人另行驗證及提交 sitemap。
 
-人物 JSON-LD 以固定 `#person` 識別 Leonard Lai／賴泰元／LeonardLai，連結官方帳號、報導、AWS 資格及有署名的音樂作品。AIEC 送測以實務能力呈現；個人價值、參與角色與資訊來源同時可在 HTML 閱讀。依 [Google 的 AI 搜尋指引](https://developers.google.com/search/docs/appearance/ai-features)，維持可爬取、可索引、有文字內容且與結構化資料一致的網站；不把特殊 AI 檔案或標記當成收錄保證。
+搜尋身分以「賴泰元」為主：兩頁的 title、description、og:site_name 與 JSON-LD `WebSite.name` 都以賴泰元開頭，人物 JSON-LD 的 `name` 為賴泰元，Leonard Lai／LeonardLai／Lai Tai-Yuan 列於 `alternateName`；首頁 `<link rel="me">` 與 `sameAs` 指向本人 GitHub、LinkedIn、YouTube 與 Spotify，工具頁以「賴泰元 Leonard Lai 的個人首頁」文字連回首頁並附 BreadcrumbList。`scripts/check-site.mjs` 會確認上述名稱訊號存在。人物 JSON-LD 以固定 `#person` 連結官方帳號、報導、AWS 資格及有署名的音樂作品。AIEC 送測以實務能力呈現；個人價值、參與角色與資訊來源同時可在 HTML 閱讀。依 [Google 的 AI 搜尋指引](https://developers.google.com/search/docs/appearance/ai-features)，維持可爬取、可索引、有文字內容且與結構化資料一致的網站；不把特殊 AI 檔案或標記當成收錄保證。
 
-`profile.updatedAt` 與首頁 sitemap 的 `lastmod` 只在個人內容實際更新時調整，不隨每日工具同步排程刷新。所有權驗證與索引成效需在 Search Console／Bing Webmaster Tools 另行確認；目前未加入任何第三方追蹤程式。
+`profile.updatedAt` 與首頁 sitemap 的 `lastmod` 只在個人內容實際更新時調整，不隨每日工具同步排程刷新。所有權驗證與索引成效需在 Search Console／Bing Webmaster Tools 另行確認；目前未加入任何第三方追蹤程式。新站要盡快出現在「賴泰元」的搜尋結果，最有效的是在 [Search Console](https://search.google.com/search-console) 以 HTML 標記驗證 `https://laitaiyuan.github.io/`（把 `google-site-verification` meta 加進 `index.html` 的 `<head>`）、提交 `sitemap.xml`，並對首頁與 `/tools/` 使用「網址檢查 → 要求建立索引」；同時在 GitHub 個人檔案、LinkedIn 與 YouTube 頻道說明放上網址，讓爬蟲從已收錄的頁面連過來。
 
 ## 部署
 

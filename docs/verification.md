@@ -21,4 +21,6 @@
 
 互動細節更新另確認：時間光線四種狀態、好理家在捲動組裝三個階段、黑膠滑出與旋轉、磁吸按鈕位移上限、游標標籤文字、紙飛機循環與跑馬燈圖示皆以 Chromium 截圖檢視；`overflow: clip` 取代 `hidden` 以免攔截 view() timeline；建置與 hydration 無錯誤。
 
+2026-09-19 的搜尋身分更新另確認：兩頁 title 與 description 以「賴泰元」開頭，人物 JSON-LD `name` 為賴泰元並保留英文、藝名與羅馬拼音別名，工具頁新增 BreadcrumbList 與連回首頁的名稱連結；建置後首頁出現賴泰元 28 次、工具頁 21 次，`check-site.mjs` 的名稱訊號檢查通過；以 Chromium 在 1440 與 390px 檢視首頁自我介紹與工具頁便條的新句子與連結，hydration 無錯誤。此次未更動任何動態、版面或圖片。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。
