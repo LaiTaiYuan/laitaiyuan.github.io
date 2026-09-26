@@ -14,6 +14,7 @@ import {
   useTilt,
 } from "./motion";
 import { useStoryDots } from "./storyDots";
+import { useStackGame } from "./stackGame";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
@@ -56,6 +57,29 @@ const storyChapters = [
   },
 ] as const;
 const storyGlyphs = storyChapters.map((chapter) => chapter.glyph);
+// Leonard's stack, bottom to top, painted on the game's layers (sources in
+// docs/content-sources.md); past the last one the floors are numbered.
+const stackLayers = [
+  "資料庫",
+  "JAVA",
+  "SPRING BOOT",
+  "REST API",
+  "AWS",
+  "AI 應用",
+  "LLM 送測",
+  "音樂創作",
+  "聽故事",
+  "寫故事",
+  "好奇心",
+  "一起創造",
+] as const;
+const stackRanks = [
+  { min: 30, title: "獅子王", line: "比 Leonard 還會疊，太強了！" },
+  { min: 20, title: "架構師", line: "連雲端架構都難不倒你。" },
+  { min: 12, title: "資深工程師", line: "穩穩的，值得信賴。" },
+  { min: 6, title: "工程師", line: "系統開始有樣子了。" },
+  { min: 0, title: "實習生", line: "先把地基打穩，再來一次！" },
+] as const;
 const heroSizes = "(max-width: 760px) 100vw, (max-width: 1400px) 55vw, 720px";
 const portraitSizes =
   "(max-width: 760px) 100vw, (max-width: 1400px) 45vw, 600px";
@@ -400,6 +424,170 @@ function StorySection() {
         <span className="lp-story-progress" aria-hidden="true">
           <span />
         </span>
+      </div>
+    </section>
+  );
+}
+
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 9h4l5-4v14l-5-4H4Z" fill="currentColor" />
+      {on ? (
+        <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />
+      ) : (
+        <path d="m16 9 6 6m0-6-6 6" />
+      )}
+    </svg>
+  );
+}
+
+// Full Stack mini game (see stackGame.ts): the canvas draws the tower; the
+// score, sound switch, start and game-over cards are HTML around it.
+function StackGameSection() {
+  const game = useStackGame(stackLayers);
+  const rank =
+    stackRanks.find((item) => game.score >= item.min) ??
+    stackRanks[stackRanks.length - 1];
+  const startFromButton = () => {
+    game.press();
+    game.stageRef.current?.focus({ preventScroll: true });
+  };
+  return (
+    <section
+      className="lp-section lp-game"
+      id="play"
+      aria-labelledby="game-title"
+    >
+      <div className="lp-container lp-game-grid">
+        <div className="lp-game-copy">
+          <div data-reveal="blur">
+            <p className="lp-eyebrow">MINI GAME · FULL STACK</p>
+            <h2 id="game-title">
+              休息一下，
+              <br />
+              來疊一座 <span className="lp-underline">Full Stack。</span>
+            </h2>
+          </div>
+          <p data-reveal="">
+            從資料庫一路疊到故事，每一層都是我實際用過的技術、做過的事。看準時機放下方塊，對得越準，疊得越高。
+          </p>
+          <div className="lp-game-legend" data-reveal="">
+            <p>由下而上 · BOTTOM TO TOP</p>
+            <ol aria-label="疊疊樂的每一層，由下而上">
+              {stackLayers.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </div>
+          <p className="lp-game-keys" id="game-keys" data-reveal="">
+            點一下畫面或按空白鍵放下方塊。完美對齊會奏出音階，連續完美還會讓方塊慢慢長回來。
+          </p>
+        </div>
+        <div
+          className="lp-game-stage"
+          ref={game.stageRef}
+          data-status={game.status}
+          tabIndex={0}
+          role="group"
+          aria-label="Full Stack 疊疊樂"
+          aria-describedby="game-keys"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            if ((event.target as Element).closest("button, a")) return;
+            game.press();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== " " && event.key !== "Enter") return;
+            if ((event.target as Element).closest("button, a")) return;
+            event.preventDefault();
+            game.press();
+          }}
+        >
+          <canvas
+            className="lp-game-canvas"
+            ref={game.canvasRef}
+            aria-hidden="true"
+          />
+          <div className="lp-game-hud">
+            <p className="lp-game-score">
+              <b>{game.score}</b>層
+            </p>
+            <div className="lp-game-tools">
+              <p>
+                最高 <b>{game.best}</b>
+              </p>
+              <button
+                type="button"
+                className="lp-game-sound"
+                aria-pressed={game.sound}
+                aria-label="音效"
+                onClick={game.toggleSound}
+              >
+                <SoundIcon on={game.sound} />
+              </button>
+            </div>
+          </div>
+          <img
+            className="lp-game-lion"
+            ref={game.lionRef}
+            src={`${base}images/lion/head.webp`}
+            alt=""
+            width="303"
+            height="380"
+            loading="lazy"
+            decoding="async"
+          />
+          {game.status !== "playing" && (
+            <div className="lp-game-card" key={game.status}>
+              {game.status === "over" ? (
+                <>
+                  <p className="lp-game-kicker">GAME OVER</p>
+                  <p className="lp-game-result">
+                    <b>{game.score}</b>層 · {rank.title}
+                  </p>
+                  <p>{rank.line}</p>
+                  <button
+                    type="button"
+                    className="lp-button lp-button-small"
+                    onClick={startFromButton}
+                  >
+                    再疊一次 <span aria-hidden="true">↻</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="lp-game-kicker">FULL STACK 疊疊樂</p>
+                  <p>看準時機放下方塊，對齊上一層。</p>
+                  <button
+                    type="button"
+                    className="lp-button lp-button-small"
+                    onClick={startFromButton}
+                    disabled={!game.ready}
+                  >
+                    開始疊 <span aria-hidden="true">▶</span>
+                  </button>
+                  <p className="lp-game-nojs">需要開啟 JavaScript 才能遊玩。</p>
+                </>
+              )}
+            </div>
+          )}
+          <p className="toolbox-sr-only" aria-live="polite">
+            {game.status === "over"
+              ? `遊戲結束，疊到第 ${game.score} 層：${rank.title}。`
+              : game.status === "playing"
+                ? "遊戲開始。"
+                : ""}
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -917,6 +1105,8 @@ export default function Home() {
             </aside>
           </div>
         </section>
+
+        <StackGameSection />
 
         <section
           className="lp-section lp-music"

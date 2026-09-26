@@ -1109,6 +1109,216 @@
   margin: 0;
   font-family: var(--tb-mono);
 }
+/* Full Stack mini game: the canvas (src/stackGame.ts) draws the tower on a
+   blue comic panel; score, sound, lion and cards sit on top as HTML. */
+.lp-game {
+  background: var(--tb-yellow-light);
+  border-top: 3px solid var(--tb-ink);
+}
+.lp-game-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 64px;
+  align-items: center;
+}
+.lp-game-copy .lp-eyebrow {
+  color: var(--tb-blue);
+}
+.lp-game-copy > p {
+  font-size: 14px;
+  color: var(--tb-muted);
+  margin-top: 18px;
+}
+.lp-game-copy > p.lp-game-keys {
+  font-size: 12px;
+}
+.lp-game-legend {
+  margin-top: 26px;
+}
+.lp-game-legend > p {
+  font: 700 10px var(--tb-mono);
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+.lp-game-legend ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lp-game-legend li {
+  padding: 5px 10px;
+  border: 2px solid var(--tb-ink);
+  border-radius: 7px;
+  background: var(--tb-yellow);
+  box-shadow: 2px 2px 0 var(--tb-ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+/* Same colour cycle as the layers (--stack-0 to --stack-4) */
+.lp-game-legend li:nth-child(5n + 2) {
+  background: var(--tb-coral);
+}
+.lp-game-legend li:nth-child(5n + 3) {
+  background: var(--tb-green);
+}
+.lp-game-legend li:nth-child(5n + 4) {
+  background: var(--tb-sky);
+}
+.lp-game-legend li:nth-child(5n) {
+  background: var(--tb-white);
+}
+.lp-game-stage {
+  --stack-0: var(--tb-yellow);
+  --stack-1: var(--tb-coral);
+  --stack-2: var(--tb-green);
+  --stack-3: var(--tb-sky);
+  --stack-4: var(--tb-white);
+  position: relative;
+  aspect-ratio: 5 / 6;
+  /* Always fits under the fixed header, even on short laptop screens */
+  max-height: min(720px, calc(100vh - 140px));
+  max-height: min(720px, calc(100svh - 140px));
+  border: 3px solid var(--tb-ink);
+  border-radius: 16px;
+  box-shadow: 7px 7px 0 var(--tb-ink);
+  background: var(--tb-blue);
+  color: var(--tb-white);
+  overflow: clip;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.lp-game-stage:focus-visible {
+  outline: 3px solid var(--tb-ink);
+  outline-offset: 5px;
+}
+.lp-game-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lp-game-hud {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  right: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+.lp-game-score {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+.lp-game-score b {
+  margin-right: 5px;
+  font-size: 52px;
+  letter-spacing: -0.02em;
+  color: var(--tb-yellow);
+  -webkit-text-stroke: 1.5px var(--tb-ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--tb-ink);
+}
+.lp-game-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lp-game-tools p {
+  font: 700 11px var(--tb-mono);
+  letter-spacing: 0.08em;
+}
+.lp-game-tools b {
+  font-size: 15px;
+  color: var(--tb-yellow);
+}
+.lp-game-sound {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 2px solid var(--tb-ink);
+  border-radius: 50%;
+  background: var(--tb-white);
+  color: var(--tb-ink);
+  box-shadow: 2px 2px 0 var(--tb-ink);
+  pointer-events: auto;
+}
+.lp-game-sound[aria-pressed="false"] {
+  background: var(--tb-line);
+}
+.lp-game-sound svg {
+  width: 20px;
+  height: 20px;
+}
+.lp-game-lion {
+  position: absolute;
+  right: 8px;
+  bottom: -18px;
+  width: clamp(72px, 19%, 108px);
+  height: auto;
+  pointer-events: none;
+  transform-origin: 50% 90%;
+}
+.lp-game-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  width: min(84%, 340px);
+  margin-inline: auto;
+  padding: 14px 18px 18px;
+  border: 3px solid var(--tb-ink);
+  border-radius: 14px;
+  background: var(--tb-paper);
+  color: var(--tb-ink);
+  box-shadow: 5px 5px 0 var(--tb-ink);
+  text-align: center;
+  cursor: auto;
+}
+.lp-game-card p {
+  font-size: 13px;
+}
+.lp-game-card p.lp-game-kicker {
+  margin-bottom: 4px;
+  font: 700 11px var(--tb-mono);
+  letter-spacing: 0.14em;
+  color: var(--tb-blue);
+}
+.lp-game-card p.lp-game-result {
+  font-size: 18px;
+  font-weight: 900;
+}
+.lp-game-result b {
+  margin-right: 3px;
+  font-size: 40px;
+  line-height: 1.1;
+  color: var(--tb-coral);
+  -webkit-text-stroke: 1.5px var(--tb-ink);
+  paint-order: stroke fill;
+}
+.lp-game-card .lp-button {
+  margin-top: 12px;
+}
+.lp-game-card p.lp-game-nojs {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--tb-muted);
+}
+.tb-js .lp-game-nojs {
+  display: none;
+}
 .lp-music {
   background: var(--tb-ink);
   color: var(--tb-white);
@@ -1833,6 +2043,18 @@
   }
   .lp-certificate {
     padding: 29px 26px;
+  }
+  .lp-game-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .lp-game-stage {
+    aspect-ratio: auto;
+    height: min(80vh, 600px);
+    height: min(80svh, 600px);
+  }
+  .lp-game-score b {
+    font-size: 42px;
   }
   .lp-records {
     grid-template-columns: repeat(2, 1fr);
@@ -2939,6 +3161,55 @@
   .lp-story-steps button {
     padding: 6px 12px 6px 10px;
     font-size: 14px;
+  }
+}
+/* Game: the lion bobs while it watches, cheers on a perfect drop and
+   wobbles on a miss; the cards pop in */
+@keyframes lp-lion-idle {
+  50% {
+    transform: translate3d(0, -6px, 0) rotate(-2deg);
+  }
+}
+@keyframes lp-lion-cheer {
+  30% {
+    transform: translate3d(0, -22px, 0) rotate(-9deg) scale(1.08);
+  }
+  60% {
+    transform: translate3d(0, 2px, 0) rotate(4deg);
+  }
+}
+@keyframes lp-lion-oops {
+  20% {
+    transform: rotate(-11deg);
+  }
+  40% {
+    transform: rotate(9deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-game-lion {
+    animation: lp-lion-idle 3.4s ease-in-out infinite;
+  }
+  .lp-game-lion.is-cheer {
+    animation: lp-lion-cheer 0.6s var(--tb-ease-spring);
+  }
+  .lp-game-lion.is-oops {
+    animation: lp-lion-oops 0.75s ease-in-out;
+  }
+  .lp-game-card {
+    animation: lp-scale-in 0.55s var(--tb-ease-spring) backwards;
+  }
+  .lp-game-stage {
+    transition: box-shadow 0.4s var(--tb-ease-quint);
+  }
+  .lp-game-stage[data-status="playing"] {
+    box-shadow: 7px 7px 0 var(--tb-coral);
   }
 }
 @media (prefers-reduced-motion: reduce) {

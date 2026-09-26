@@ -29,6 +29,7 @@ npm run preview
 - `src/Home.tsx`：首頁內容與互動；`src/portfolio.css`：沿用工具小舖 tokens 的首頁版面與動態。
 - `src/motion.ts`：兩頁共用的動態 hooks（捲動揭示、指標視差、捲動進度後備、導覽定位、3D 傾斜）。
 - `src/storyDots.ts`：首頁網點故事的 canvas 引擎與捲動章節 hook（字形取樣成六角網屏、彈簧物理、游標撥開、點擊衝擊波、離開畫面即暫停）。
+- `src/stackGame.ts`：首頁「Full Stack 疊疊樂」小遊戲的等角 canvas 引擎、音效與狀態 hook；每層標籤與稱號在 `src/Home.tsx`。
 - `scripts/build-lion-scene.py`、`scripts/build-images.py`：由原始插畫與照片產生首頁獅子場景圖層與 WebP／AVIF 響應式圖片，見 `docs/lion-art.md`。
 - `src/data/profile.ts`：姓名、平台連結與音樂作品。
 - `docs/content-sources.md`：公開事實來源、角色歸屬、本人提供的照片與插畫出處。
