@@ -46,7 +46,7 @@
     "links": [
       {
         "label": "跟著 README 開始",
-        "url": "https://github.com/1weiho/open-slide#readme"
+        "url": "https://github.com/open-slide/open-slide#readme"
       },
       {
         "label": "閱讀官方文件",
@@ -54,16 +54,16 @@
       },
       {
         "label": "探索專案與範例",
-        "url": "https://github.com/1weiho/open-slide"
+        "url": "https://github.com/open-slide/open-slide"
       }
     ],
-    "website": "https://github.com/1weiho/open-slide",
+    "website": "https://github.com/open-slide/open-slide",
     "websiteLabel": "前往 GitHub",
-    "repository": "1weiho/open-slide",
+    "repository": "open-slide/open-slide",
     "releaseTagPrefix": "@open-slide/core@",
     "licenseLabel": "開源・MIT 授權",
     "licenseNote": "本頁追蹤核心套件的正式版本。",
-    "licenseUrl": "https://github.com/1weiho/open-slide/blob/main/LICENSE"
+    "licenseUrl": "https://github.com/open-slide/open-slide/blob/main/LICENSE"
   },
   {
     "id": "gitnexus",
