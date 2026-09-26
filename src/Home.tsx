@@ -13,6 +13,7 @@ import {
   useScrolled,
   useTilt,
 } from "./motion";
+import { useStoryDots } from "./storyDots";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
@@ -23,6 +24,38 @@ const interests = [
   ["音樂創作", "music"],
   ["好工具分享", "tools"],
 ] as const;
+// Chapter copy is split into clauses so lines only break at punctuation.
+const storyChapters = [
+  {
+    glyph: "聽",
+    title: "聽故事",
+    text: [
+      "每一段經歷、每一個正在面對的問題，",
+      "都有值得被理解的脈絡。",
+      "先把故事聽完，",
+      "才知道要從哪裡開始。",
+    ],
+  },
+  {
+    glyph: "寫",
+    title: "寫故事",
+    text: [
+      "把聽見的需要寫成程式，",
+      "把感受寫進文字與旋律，",
+      "讓想法慢慢有了能運作的形狀。",
+    ],
+  },
+  {
+    glyph: "創",
+    title: "一起創造故事",
+    text: [
+      "從家庭財務到醫療現場，",
+      "和不同的人一起，",
+      "把技術放進真實的問題裡。",
+    ],
+  },
+] as const;
+const storyGlyphs = storyChapters.map((chapter) => chapter.glyph);
 const heroSizes = "(max-width: 760px) 100vw, (max-width: 1400px) 55vw, 720px";
 const portraitSizes =
   "(max-width: 760px) 100vw, (max-width: 1400px) 45vw, 600px";
@@ -275,6 +308,103 @@ function SkillIcon({ kind }: { kind: "code" | "spark" | "music" | "tools" }) {
   );
 }
 
+// The story told in halftone dots (see storyDots.ts). Without JavaScript or
+// with reduced motion the CSS lays the chapters out side by side, each with a
+// static halftone glyph; otherwise the stage pins while the dots gather into
+// one chapter's glyph after another.
+function StorySection() {
+  const { sectionRef, canvasRef, glyphRef, chapter, live, goTo } =
+    useStoryDots(storyGlyphs);
+  return (
+    <section
+      className={live ? "lp-story is-live" : "lp-story"}
+      id="story"
+      aria-labelledby="story-title"
+      ref={sectionRef}
+    >
+      <div className="lp-story-stage">
+        <canvas
+          className="lp-story-canvas"
+          ref={canvasRef}
+          aria-hidden="true"
+        />
+        <div className="lp-container lp-story-grid">
+          <div className="lp-story-head" data-reveal="blur">
+            <p className="lp-eyebrow">DOT BY DOT, STORY BY STORY</p>
+            <h2 id="story-title">
+              故事，是<span>一點一點</span>
+              <br />
+              拼起來的。
+            </h2>
+          </div>
+          <ol className="lp-story-chapters">
+            {storyChapters.map((item, index) => (
+              <li
+                className={
+                  index === chapter
+                    ? "lp-story-chapter is-active"
+                    : "lp-story-chapter"
+                }
+                key={item.glyph}
+              >
+                <span className="lp-story-mark" aria-hidden="true">
+                  {item.glyph}
+                </span>
+                <p className="lp-story-num">CHAPTER 0{index + 1}</p>
+                <h3>{item.title}</h3>
+                <p>
+                  {item.text.map((clause) => (
+                    <span key={clause}>{clause}</span>
+                  ))}
+                </p>
+              </li>
+            ))}
+          </ol>
+          <div
+            className="lp-story-glyph"
+            ref={glyphRef}
+            data-chapter={chapter}
+            data-cursor="點一下 ✦"
+            aria-hidden="true"
+          >
+            <span className="lp-story-mark" key={chapter}>
+              {storyChapters[chapter].glyph}
+            </span>
+            <p className="lp-story-hint">
+              <span className="lp-story-hint-fine">
+                ✦ 移動游標撥開網點，點一下會散開
+              </span>
+              <span className="lp-story-hint-touch">✦ 點一下，網點會散開</span>
+            </p>
+          </div>
+          <div className="lp-story-foot">
+            <div className="lp-story-steps" role="group" aria-label="故事章節">
+              {storyChapters.map((item, index) => (
+                <button
+                  type="button"
+                  key={item.glyph}
+                  aria-label={`第 ${index + 1} 章：${item.title}`}
+                  aria-current={index === chapter ? "step" : undefined}
+                  onClick={() => goTo(index)}
+                >
+                  <span>0{index + 1}</span>
+                  {item.glyph}
+                </button>
+              ))}
+            </div>
+            <a href="#work" className="lp-story-skip">
+              看看這些作品 <Arrow down />
+            </a>
+          </div>
+        </div>
+        <span className="lp-story-progress" aria-hidden="true">
+          <span />
+        </span>
+      </div>
+    </section>
+  );
+}
+
 function InterestGroup({ hidden = false }: { hidden?: boolean }) {
   return (
     <ul className="lp-marquee-group" aria-hidden={hidden || undefined}>
@@ -377,7 +507,7 @@ export default function Home() {
                   用技術與音樂，把聽見的需要，變成能一起完成的作品。
                 </p>
                 <div className="lp-actions">
-                  <a href="#work" className="lp-button" data-magnet="">
+                  <a href="#story" className="lp-button" data-magnet="">
                     看看故事與作品 <Arrow down />
                   </a>
                   <a href="#contact" className="lp-hero-link">
@@ -406,6 +536,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <StorySection />
 
         <section
           className="lp-section lp-work"
