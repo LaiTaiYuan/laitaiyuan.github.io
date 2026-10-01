@@ -15,6 +15,7 @@ import {
 } from "./motion";
 import { useStoryDots } from "./storyDots";
 import { useStackGame } from "./stackGame";
+import { BrandStorySection, BrandSymbol } from "./BrandMark";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
@@ -633,7 +634,7 @@ export default function Home() {
             aria-label="Leonard Lai 個人網站首頁"
           >
             <span className="lp-monogram" aria-hidden="true">
-              L.
+              <BrandSymbol small />
             </span>
             <span>
               LEONARD LAI<small>賴泰元的創作基地</small>
@@ -1004,6 +1005,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <BrandStorySection />
 
         <section
           className="lp-section lp-journey"

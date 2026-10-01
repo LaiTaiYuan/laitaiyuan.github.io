@@ -31,18 +31,21 @@
   margin-top: 2px;
   font-weight: 700;
 }
+/* 頁首徽章：品牌符號小尺寸版放進白色漫畫框 */
 .lp-monogram {
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
-  background: var(--tb-yellow);
+  background: var(--tb-white);
   border: 3px solid var(--tb-ink);
-  border-radius: 50%;
-  font-size: 30px;
-  font-family: Georgia, serif;
-  font-style: italic;
+  border-radius: 14px;
   box-shadow: 3px 3px 0 var(--tb-ink);
+}
+.lp-monogram svg {
+  width: 66%;
+  height: 66%;
+  overflow: visible;
 }
 .lp-header nav {
   display: flex;
@@ -1109,6 +1112,177 @@
   margin: 0;
   font-family: var(--tb-mono);
 }
+/* Brand mark story (src/BrandMark.tsx): the symbol performs on a dark comic
+   stage. Lights flicker on, the L drops in and squashes, the mountain springs
+   up like jelly, the wand spins in, winds up and swings; the star bursts,
+   "ACTION!" pops and the L and mountain hop. Colours are the --tb-brand-*
+   tokens; without JavaScript or with reduced motion the finished mark shows. */
+.lp-mark {
+  background: var(--tb-blue-light);
+  border-top: 3px solid var(--tb-ink);
+}
+.lp-mark-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+.lp-mark-copy .lp-eyebrow {
+  color: var(--tb-blue);
+}
+.lp-mark-copy > p {
+  max-width: 34em;
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--tb-muted);
+}
+.lp-mark-parts {
+  display: grid;
+  gap: 12px;
+  margin: 26px 0 0;
+}
+.lp-mark-parts > div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 11px 14px;
+  border: 2px solid var(--tb-ink);
+  border-radius: 12px;
+  background: var(--tb-white);
+  box-shadow: 3px 3px 0 var(--tb-ink);
+}
+.lp-mark-parts dt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 900;
+}
+.lp-mark-parts dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--tb-muted);
+}
+.lp-mark-part-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.lp-mark-copy > p.lp-mark-tagline {
+  margin-top: 22px;
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--tb-ink);
+}
+.lm-l,
+.lm-wand {
+  fill: var(--tb-brand-ink);
+}
+.lm-mountain {
+  fill: var(--tb-brand-sky);
+}
+.lm-face {
+  fill: var(--tb-brand-sky-light);
+}
+.lm-star {
+  fill: var(--tb-brand-gold);
+}
+.lm-white {
+  fill: var(--tb-white);
+}
+.lp-mark-stage {
+  position: relative;
+  justify-self: end;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1;
+  border: 3px solid var(--tb-ink);
+  border-radius: 16px;
+  box-shadow: 7px 7px 0 var(--tb-ink);
+  background: var(--tb-ink);
+  overflow: clip;
+}
+.lp-mark-spot {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 48% 62% at 50% 4%,
+      rgb(255 240 200 / 0.26),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 46% 14% at 50% 79%,
+      rgb(255 240 200 / 0.14),
+      transparent 72%
+    );
+  pointer-events: none;
+}
+.lp-mark-svg {
+  position: absolute;
+  top: 3%;
+  left: 6%;
+  width: 88%;
+  height: 84%;
+  overflow: visible;
+}
+.lp-mark-stage .lm-l,
+.lp-mark-stage .lm-wand {
+  fill: var(--tb-white);
+}
+.lp-mark-stage .lm-mountain {
+  fill: var(--tb-brand-sky-night);
+}
+.lp-mark-stage .lm-face {
+  fill: var(--tb-brand-ridge-night);
+}
+.lm-floor {
+  fill: rgb(255 240 200 / 0.08);
+}
+.lm-burst path,
+.lm-action {
+  opacity: 0;
+}
+.lm-action polygon {
+  fill: var(--tb-yellow);
+  stroke: var(--tb-ink);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.lm-action text {
+  fill: var(--tb-ink);
+  font: italic 900 14px var(--tb-display);
+  letter-spacing: 0.02em;
+  text-anchor: middle;
+}
+.lm-hop,
+.lm-part,
+.lm-sway,
+.lm-twinkle,
+.lm-burst path,
+.lm-action {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.lm-hop,
+.lm-l-in,
+.lm-mountain-in,
+.lm-sway,
+.lm-wand-in {
+  transform-origin: 50% 100%;
+}
+.lp-mark-replay {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: none;
+}
+.tb-js .lp-mark-replay {
+  display: inline-flex;
+}
 /* Full Stack mini game: the canvas (src/stackGame.ts) draws the tower on a
    blue comic panel; score, sound, lion and cards sit on top as HTML. */
 .lp-game {
@@ -1757,6 +1931,19 @@
   }
 }
 @media (max-width: 760px) {
+  .lp-mark-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+  .lp-mark-stage {
+    justify-self: center;
+  }
+  .lp-mark-parts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}
+@media (max-width: 760px) {
   .lp-current-work {
     grid-template-columns: 1fr;
     gap: 18px;
@@ -1786,7 +1973,6 @@
   .lp-monogram {
     width: 42px;
     height: 42px;
-    font-size: 27px;
   }
   .lp-header nav {
     width: 100%;
@@ -3212,6 +3398,270 @@
     box-shadow: 7px 7px 0 var(--tb-coral);
   }
 }
+/* Brand mark story: the show only runs once it is on screen (data-phase is
+   set by src/BrandMark.tsx); idle twinkles pause when it scrolls away. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-mark-stage[data-phase="armed"] .lm-part,
+  .lp-mark-stage[data-phase="armed"] .lp-mark-spot {
+    opacity: 0;
+  }
+  .lp-mark-stage[data-phase="playing"] .lp-mark-spot {
+    animation: lm-lights 0.6s linear both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-l-in {
+    animation: lm-drop 0.85s 0.35s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-mountain-in {
+    animation: lm-spring 0.95s 0.95s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-wand-in {
+    animation: lm-wand 2.3s 1.5s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-star-in {
+    animation: lm-star 0.8s 3.15s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-spark-in {
+    animation: lm-star 0.6s 3.45s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-burst path {
+    animation: lm-fly 0.9s calc(3.15s + var(--delay, 0s))
+      cubic-bezier(0.15, 0.8, 0.25, 1) both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-action {
+    animation: lm-action 1.3s 3.18s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-hop-mountain {
+    animation: lm-hop 0.55s 3.35s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-hop-l {
+    animation: lm-hop 0.55s 3.5s both;
+  }
+  .lp-mark-stage[data-phase="done"][data-inview] .lm-twinkle-star {
+    animation: lm-twinkle 3.6s 0.4s ease-in-out infinite;
+  }
+  .lp-mark-stage[data-phase="done"][data-inview] .lm-twinkle-spark {
+    animation: lm-twinkle 3.6s 1.6s ease-in-out infinite;
+  }
+  .lp-mark-stage[data-phase="done"][data-inview] .lm-sway {
+    animation: lm-sway 4.8s ease-in-out infinite;
+  }
+}
+@keyframes lm-lights {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 0.35;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes lm-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-300px) scale(0.86, 1.3);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  6% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(0) scale(0.88, 1.18);
+    animation-timing-function: ease-out;
+  }
+  64% {
+    transform: scale(1.24, 0.68);
+    animation-timing-function: ease-in-out;
+  }
+  80% {
+    transform: translateY(-18px) scale(0.94, 1.08);
+    animation-timing-function: ease-in;
+  }
+  92% {
+    transform: scale(1.05, 0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lm-spring {
+  0% {
+    opacity: 0;
+    transform: scale(0.5, 0);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  1% {
+    opacity: 1;
+  }
+  34% {
+    transform: scale(0.8, 1.35);
+    animation-timing-function: ease-in-out;
+  }
+  52% {
+    transform: scale(1.2, 0.76);
+    animation-timing-function: ease-in-out;
+  }
+  68% {
+    transform: scale(0.94, 1.1) skewX(-7deg);
+  }
+  82% {
+    transform: scale(1.03, 0.97) skewX(4deg);
+  }
+  92% {
+    transform: skewX(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lm-wand {
+  0% {
+    opacity: 0;
+    transform: translate(200px, -220px) rotate(-720deg) scale(0.5);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  2% {
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(14deg) scale(1.08, 0.9);
+    animation-timing-function: ease-out;
+  }
+  38% {
+    transform: rotate(-7deg) scale(0.97, 1.04);
+  }
+  46% {
+    transform: none;
+    animation-timing-function: ease-in-out;
+  }
+  60% {
+    transform: rotate(-26deg);
+  }
+  66% {
+    transform: rotate(-28deg);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1.4);
+  }
+  74% {
+    transform: rotate(32deg);
+    animation-timing-function: ease-out;
+  }
+  84% {
+    transform: rotate(-9deg);
+  }
+  92% {
+    transform: rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lm-star {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  1% {
+    opacity: 1;
+  }
+  45% {
+    transform: scale(1.8) rotate(15deg);
+  }
+  70% {
+    transform: scale(0.85) rotate(-6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lm-fly {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  1%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(90deg);
+  }
+}
+@keyframes lm-action {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-35deg);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1.3) rotate(-4deg);
+  }
+  26% {
+    transform: scale(0.92) rotate(-11deg);
+  }
+  36%,
+  78% {
+    opacity: 1;
+    transform: rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.85) rotate(-8deg);
+  }
+}
+@keyframes lm-hop {
+  0% {
+    transform: none;
+    animation-timing-function: ease-out;
+  }
+  18% {
+    transform: scale(1.12, 0.86);
+    animation-timing-function: ease-out;
+  }
+  50% {
+    transform: translateY(-22px) scale(0.94, 1.08);
+    animation-timing-function: ease-in;
+  }
+  82% {
+    transform: scale(1.08, 0.92);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes lm-twinkle {
+  0%,
+  78% {
+    transform: none;
+  }
+  88% {
+    transform: scale(1.25) rotate(45deg);
+  }
+  100% {
+    transform: rotate(90deg);
+  }
+}
+@keyframes lm-sway {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: rotate(-3deg);
+  }
+  70% {
+    transform: rotate(2.5deg);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .portfolio-page *,
   .portfolio-page *::before,
@@ -3219,6 +3669,9 @@
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+  .tb-js .lp-mark-replay {
+    display: none;
   }
   .lp-marquee-group[aria-hidden] {
     display: none;

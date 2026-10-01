@@ -18,6 +18,14 @@
   --tb-scrollbar-track: #354ac0;
   --tb-scrollbar-hover: #ff8b44;
   --tb-scrollbar-active: #ffffff;
+  /* 品牌符號（src/data/brandMark.ts）：L 與魔法棒、山、山的亮面、棒尖的星；
+     -night 是深色舞台上的山。 */
+  --tb-brand-ink: #0a3a9e;
+  --tb-brand-sky: #2e8bff;
+  --tb-brand-sky-light: #7db8ff;
+  --tb-brand-gold: #ffb020;
+  --tb-brand-sky-night: #4a9dff;
+  --tb-brand-ridge-night: #8cc2ff;
   --tb-body: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   --tb-display: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   --tb-mono: "SFMono-Regular", Consolas, monospace;
