@@ -1,0 +1,4 @@
+# 本人提供的品牌原檔附 C2PA 內容憑證，換行轉換會讓它們和原檔不同；
+# 這幾個檔案一律原樣保存（favicon.svg 是 App 圖示的副本）。
+public/brand/*.svg -text
+public/favicon.svg -text
