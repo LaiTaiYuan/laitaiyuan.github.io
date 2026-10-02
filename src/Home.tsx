@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import lion from "./data/lionScene.json";
+import { lionMotto } from "./data/lionQuips";
 import { profile, tracks } from "./data/profile";
+import { useLionHead } from "./lionHead";
 import {
   useCursorBadge,
   useDaypart,
@@ -13,6 +15,7 @@ import {
   useScrolled,
   useTilt,
 } from "./motion";
+import type { Daypart } from "./motion";
 import { useStoryDots } from "./storyDots";
 import { useStackGame } from "./stackGame";
 import { BrandStorySection, BrandSymbol } from "./BrandMark";
@@ -147,6 +150,7 @@ function SceneLayer({
   return (
     <div
       className={`lp-layer lp-layer--${name}`}
+      data-layer={name}
       style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%` }}
     >
       <img
@@ -199,10 +203,21 @@ function Sparkle({
   );
 }
 
-function LionScene() {
+// The studio scene. With WebGL the canvas redraws the base with the lion's
+// head turned (src/lionHead.ts) and the base image steps aside; the button
+// over the lion lets anyone, keyboard included, poke it for a line.
+function LionScene({
+  head,
+}: {
+  head: Pick<
+    ReturnType<typeof useLionHead>,
+    "sceneRef" | "canvasRef" | "live" | "poke" | "greet"
+  >;
+}) {
   return (
     <div
-      className="lp-hero-scene"
+      className={head.live ? "lp-hero-scene is-gl" : "lp-hero-scene"}
+      ref={head.sceneRef}
       style={{ aspectRatio: `${lion.width} / ${lion.height}` }}
     >
       <Picture stem="images/lion/base" widths={[768, 1536]} sizes={heroSizes}>
@@ -215,6 +230,7 @@ function LionScene() {
           fetchPriority="high"
         />
       </Picture>
+      <canvas className="lp-scene-gl" ref={head.canvasRef} aria-hidden="true" />
       <div className="lp-scene-layers" aria-hidden="true">
         <span
           className="lp-fx lp-fx-lamp"
@@ -237,11 +253,43 @@ function LionScene() {
         </SceneLayer>
         <SceneLayer name="pupil-left" />
         <SceneLayer name="pupil-right" />
+        <SceneLayer name="rays" />
         <SceneLayer name="bulb" />
         <Sparkle x={1150} y={128} size={30} delay={0} />
         <Sparkle x={982} y={252} size={22} delay={0.9} />
         <Sparkle x={1132} y={262} size={18} delay={1.7} />
       </div>
+      <button
+        type="button"
+        className="lp-lion-poke"
+        style={sceneRect(605, 30, 985, 405)}
+        aria-label="戳一下獅子，聽牠說句話"
+        data-cursor="戳一下 ✦"
+        onClick={head.poke}
+        onPointerEnter={head.greet}
+      />
+    </div>
+  );
+}
+
+function HeroArt({ daypart }: { daypart: Daypart }) {
+  const head = useLionHead(daypart);
+  return (
+    <div className="lp-hero-art">
+      <span className="lp-art-note" ref={head.bubbleRef}>
+        {head.quip ?? lionMotto}
+        <svg className="lp-art-tail" viewBox="0 0 28 26" aria-hidden="true">
+          <path d="M4 0c4 9 3 16-3 25 11-5 18-14 24-25Z" />
+          <path d="M4 0c4 9 3 16-3 25 11-5 18-14 24-25" />
+        </svg>
+      </span>
+      <div className="lp-hero-figure">
+        <LionScene head={head} />
+      </div>
+      <span className="lp-art-caption">LEONARD’S LITTLE BIG IDEAS</span>
+      <span className="toolbox-sr-only" aria-live="polite">
+        {head.heard}
+      </span>
     </div>
   );
 }
@@ -704,15 +752,7 @@ export default function Home() {
                   </a>
                 </div>
               </div>
-              <div className="lp-hero-art">
-                <span className="lp-art-note">好奇心，持續開工！</span>
-                <div className="lp-hero-figure">
-                  <LionScene />
-                </div>
-                <span className="lp-art-caption">
-                  LEONARD’S LITTLE BIG IDEAS
-                </span>
-              </div>
+              <HeroArt daypart={daypart} />
             </div>
           </div>
           <div className="lp-interest-strip" aria-label="創作領域">

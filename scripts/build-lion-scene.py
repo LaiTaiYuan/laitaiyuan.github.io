@@ -11,10 +11,12 @@ Reads public/images/leonard-lion-studio.png (the untouched source) and writes:
   src/data/lionScene.json                    layer boxes and pivots as
                                              percentages of the 1536 × 1024 scene
 
-Layers that stay on top of an untouched base (head, plants, bulb) only move a
-few pixels, so their edges can be rough. The tail is erased from the base so it
-can wag over the transparent background, and each pupil is replaced by eye
-white so the eyes can follow the pointer.
+Layers that stay on top of an untouched base (head, plants) only move a few
+pixels, so their edges can be rough. The tail, bulb and the bulb's light rays
+are erased from the base so they can move over the transparent background,
+and each pupil is replaced by eye white so the eyes can follow the pointer.
+The rays also have to leave the base because src/lionHead.ts warps the base
+around the head, and they sit right next to the mane.
 """
 
 from __future__ import annotations
@@ -30,7 +32,9 @@ from scene_cutout import (
     DARK_LUMA,
     RING,
     cut_character,
+    dilate,
     drop_specks,
+    label_components,
     luma,
     percent_box,
     save,
@@ -91,6 +95,21 @@ STRIP = {
     "plant-left": (lambda r, g, b: (r > g + 30) & (b < 120), 1),  # desk wood
 }
 
+# The bulb's light rays: free-standing strokes on the transparent background
+# inside this box (x0, y0, x1, y1). Anything touching the box edge, such as the
+# mane on the left, is left alone.
+RAYS = (948, 82, 1166, 246)
+# Two rays are drawn over the mane's outline, so they are cut as capsules
+# (axis start, axis end, radius; fitted to their yellow rims). Ink further
+# than RAY_CORE from the axis is the mane's outline, not the ray's dark core.
+# Under their tips, left of the outline's hidden right edge (x = a + b * y),
+# the base is repainted with outline ink.
+TOUCHING_RAYS = [
+    ((968.2, 169.8), (992.8, 174.8), 6.5, (949.2, 0.118)),
+    ((978.9, 225.2), (996.1, 216.9), 6.5, (997.5, -0.0714)),
+]
+RAY_CORE = 4.5
+
 # Pivots in source pixels (transform-origin of each layer's motion).
 PIVOTS = {
     "head": (790, 400),
@@ -98,6 +117,7 @@ PIVOTS = {
     "plant-left": (172, 560),
     "plant-right": (1438, 604),
     "tail": (1000, 678),
+    "rays": (1058, 172),  # centre of the bulb glass, so the rays radiate
 }
 
 # Pupils: ellipse centre and radii in source pixels. The cut-out is the pupil;
@@ -126,6 +146,56 @@ def cut_pupil(rgba: np.ndarray, cx: float, cy: float, rx: float, ry: float):
     alpha = ellipse_alpha((x1 - x0, y1 - y0), cx - x0, cy - y0, rx, ry)
     window[..., 3] = np.minimum(window[..., 3], alpha)
     return window, (x0, y0, x1, y1), alpha
+
+
+def axis_distance(xs: np.ndarray, ys: np.ndarray, start, end) -> np.ndarray:
+    """Distance from each pixel centre to the segment start-end."""
+    (ax, ay), (bx, by) = start, end
+    px, py = xs + 0.5, ys + 0.5
+    t = np.clip(((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2), 0, 1)
+    return np.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay)))
+
+
+def cut_rays(base: np.ndarray, region: tuple[int, int, int, int]):
+    """Lift the light rays out of the base (after the bulb is erased).
+
+    Free-standing rays are the solid strokes in `region` that do not touch its
+    edge; their anti-aliased rim comes along, but never pixels nearer to
+    another object. Rays drawn over the mane are cut as capsules, and the
+    outline they covered is repainted with ink so the mane keeps its edge."""
+    x0, y0, x1, y1 = region
+    window = base[y0:y1, x0:x1]
+    solid = window[..., 3] > 40
+    labels = label_components(solid, diagonal=True)
+    edge = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    counts = np.bincount(labels.ravel())
+    keep = counts >= 30
+    keep[0] = False
+    keep[edge] = False
+    rays = keep[labels]
+    others = solid & ~rays
+    cover = (dilate(rays, 2) & (window[..., 3] > 0) & ~dilate(others, 1)).astype(np.float32)
+    ink = np.zeros(cover.shape, np.float32)  # recolour weight, mane side
+    dark = luma(window) < DARK_LUMA
+    ys, xs = np.mgrid[y0:y1, x0:x1]
+    for start, end, radius, (a, b) in TOUCHING_RAYS:
+        distance = axis_distance(xs, ys, start, end)
+        near = np.clip(radius + 0.5 - distance, 0, 1)
+        cover = np.maximum(cover, near * ~(dark & (distance > RAY_CORE)))
+        ink = np.maximum(ink, near * (xs < a + b * ys))
+    cut_mask = cover > 0
+    ys_on, xs_on = np.nonzero(cut_mask)
+    bx0, bx1, by0, by1 = xs_on.min(), xs_on.max() + 1, ys_on.min(), ys_on.max() + 1
+    cut = window[by0:by1, bx0:bx1].copy()
+    cut[..., 3] = (cut[..., 3] * cover[by0:by1, bx0:bx1]).round().astype(np.uint8)
+    # Erase from the base; on the mane side of a touching ray keep the pixels
+    # opaque and paint them with the outline's own ink instead.
+    colour = np.median(window[dark & (window[..., 3] > 200) & ~cut_mask][:, :3], axis=0)
+    erase = np.where(ink > 0, 0, cover)
+    rgb = window[..., :3] * (1 - ink[..., None]) + colour * ink[..., None]
+    window[..., :3] = rgb.round().astype(np.uint8)
+    window[..., 3] = (window[..., 3] * (1 - erase)).round().astype(np.uint8)
+    return cut, (x0 + bx0, y0 + by0, x0 + bx1, y0 + by1)
 
 
 def strip_colour(cut: np.ndarray, test, min_size: int) -> np.ndarray:
@@ -216,6 +286,7 @@ def main() -> None:
             region = base[y0:y1, x0:x1]
             region[..., 3] = np.minimum(region[..., 3], 255 - hole)
             region[fringe & (region[..., 3] < 200), 3] = 0
+    layers["rays"] = cut_rays(base, RAYS)
     for name, (cx, cy, rx, ry) in PUPILS.items():
         cut, box, alpha = cut_pupil(rgba, cx, cy, rx, ry)
         layers[name] = (cut, box)

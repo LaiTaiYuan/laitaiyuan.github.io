@@ -317,6 +317,37 @@
   inset: 0;
   pointer-events: none;
 }
+/* The head-turning lion (src/lionHead.ts): once the canvas has drawn the
+   scene it replaces the base image and the head layer it redraws. */
+.lp-scene-gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
+}
+.lp-hero-scene.is-gl .lp-scene-gl {
+  visibility: visible;
+}
+.lp-hero-scene.is-gl .lp-scene-base,
+.lp-hero-scene.is-gl .lp-layer--head img {
+  visibility: hidden;
+}
+.lp-lion-poke {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 48%;
+  background: none;
+}
+.lp-lion-poke:focus-visible {
+  border-radius: 48%;
+}
+/* Without JavaScript the lion has nothing to say */
+html:not(.tb-js) .lp-lion-poke {
+  display: none;
+}
 .lp-layer,
 .lp-fx,
 .lp-sparkle {
@@ -385,8 +416,13 @@
   stroke-linejoin: round;
   opacity: 0;
 }
+/* The lion's speech bubble: its motto, or a line from src/data/lionQuips.ts */
 .lp-art-note {
-  display: table;
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: fit-content;
+  max-width: 88%;
   margin: 0 7% 0 auto;
   padding: 10px 20px;
   background: var(--tb-white);
@@ -395,7 +431,29 @@
   border-radius: 50%;
   font-weight: 900;
   font-size: 14px;
+  text-align: center;
+  text-wrap: balance;
   transform: rotate(6deg);
+}
+.lp-art-tail {
+  position: absolute;
+  left: 26%;
+  top: calc(100% - 5px);
+  width: 28px;
+  height: 26px;
+  overflow: visible;
+  fill: var(--tb-white);
+  stroke: var(--tb-ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lp-art-tail path:first-child {
+  stroke: none;
+}
+.lp-art-tail path:last-child {
+  fill: none;
+  vector-effect: non-scaling-stroke;
 }
 .lp-art-caption {
   display: block;
@@ -2022,6 +2080,10 @@
     padding: 8px 16px;
     margin-bottom: 7px;
   }
+  .lp-art-tail {
+    width: 22px;
+    height: 20px;
+  }
   .lp-hero-scene {
     width: 100%;
     margin: 0;
@@ -2626,6 +2688,11 @@
     transform: scale(1.045);
   }
 }
+@keyframes lp-rays {
+  50% {
+    transform: scale(1.06);
+  }
+}
 @keyframes lp-bulb-glow {
   0%,
   100% {
@@ -2851,6 +2918,7 @@
   }
   .lp-layer--head,
   .lp-layer--bulb,
+  .lp-layer--rays,
   .lp-layer--plant-left,
   .lp-layer--plant-right,
   .lp-layer--tail {
@@ -2864,7 +2932,8 @@
   .lp-layer--head {
     --depth: 3px;
   }
-  .lp-layer--bulb {
+  .lp-layer--bulb,
+  .lp-layer--rays {
     --depth: 4px;
   }
   .lp-layer--plant-left,
@@ -2899,6 +2968,20 @@
   }
   .lp-layer--bulb img {
     animation: lp-bulb 2.8s ease-in-out infinite;
+  }
+  .lp-layer--rays img {
+    animation: lp-rays 2.8s ease-in-out infinite;
+  }
+  /* With the head drawn by WebGL, script places the pupils and the notes
+     every frame, so they must not lag behind on a transition. */
+  .lp-hero-scene.is-gl .lp-layer--head,
+  .lp-hero-scene.is-gl .lp-layer--pupil-left,
+  .lp-hero-scene.is-gl .lp-layer--pupil-right {
+    transition: none;
+  }
+  .lp-hero-scene.is-gl .lp-layer--pupil-left img,
+  .lp-hero-scene.is-gl .lp-layer--pupil-right img {
+    animation: none;
   }
   .lp-fx-bulb {
     animation: lp-bulb-glow 2.8s ease-in-out infinite;

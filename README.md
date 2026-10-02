@@ -30,6 +30,7 @@ npm run preview
 - `src/motion.ts`：兩頁共用的動態 hooks（捲動揭示、指標視差、捲動進度後備、導覽定位、3D 傾斜）。
 - `src/storyDots.ts`：首頁網點故事的 canvas 引擎與捲動章節 hook（字形取樣成六角網屏、彈簧物理、游標撥開、點擊衝擊波、離開畫面即暫停）。
 - `src/stackGame.ts`：首頁「Full Stack 疊疊樂」小遊戲的等角 canvas 引擎、音效與狀態 hook；每層標籤與稱號在 `src/Home.tsx`。
+- `src/lionHead.ts`：首頁獅子轉頭與說話——WebGL 把底圖頭部當橡皮膜變形（轉頭、歪頭、點頭、張嘴），眼睛先看、頭再跟上，閒置時自己張望與跟著音樂點頭；對白 hook 依滑鼠、觸控與鍵盤選台詞。台詞與笑話在 `src/data/lionQuips.ts`。
 - `src/BrandMark.tsx`、`src/data/brandMark.ts`：品牌符號（L、山、魔法棒與星拼成 LAI）的靜態版、頁首徽章與首頁「品牌符號故事」的舞台動畫；路徑資料由品牌符號的參數產生器輸出，不手改座標。`public/favicon.svg`、`favicon.ico` 與 `apple-touch-icon.png` 是同一個符號；工具頁保留自己的 `tools-favicon.svg`。
 - `scripts/build-lion-scene.py`、`scripts/build-images.py`：由原始插畫與照片產生首頁獅子場景圖層與 WebP／AVIF 響應式圖片，見 `docs/lion-art.md`。
 - `src/data/profile.ts`：姓名、平台連結與音樂作品。
