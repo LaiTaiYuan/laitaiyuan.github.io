@@ -1,0 +1,948 @@
+/* 「我的人生最後一哩路」(/last-mile/). Tokens come from toolbox.css (--tb-*);
+   the film runs at night, so the page inverts the homepage: ink and deep blue
+   grounds, paper text, yellow for finished songs and sky blue for rests. */
+.mile-page {
+  --mile-note: var(--tb-yellow);
+  --mile-rest: var(--tb-sky);
+  --mile-ink: var(--tb-ink);
+  --mile-line: var(--tb-white);
+  --mile-label: var(--tb-paper);
+  --mile-glow: 255, 190, 35;
+  --mile-night: #070b22;
+  --mile-deep: #0d1640;
+  --tb-focus: var(--tb-yellow);
+  min-height: 100vh;
+  background: var(--mile-night);
+  color: var(--tb-paper);
+  font-family: var(--tb-body);
+}
+.mile-container {
+  width: min(1260px, calc(100% - 96px));
+  margin-inline: auto;
+}
+
+/* Header */
+.mile-header {
+  background: var(--tb-ink);
+  border-bottom: 3px solid var(--tb-ink);
+  color: var(--tb-paper);
+}
+.mile-header-inner {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.mile-brand {
+  display: inline-flex;
+  gap: 13px;
+  align-items: center;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.025em;
+}
+.mile-brand small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  opacity: 0.8;
+}
+.mile-monogram {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--tb-white);
+  border: 3px solid var(--tb-ink);
+  border-radius: 13px;
+  box-shadow: 3px 3px 0 var(--tb-yellow);
+}
+.mile-monogram svg {
+  width: 66%;
+  height: 66%;
+  overflow: visible;
+}
+.mile-header nav {
+  display: flex;
+  gap: 26px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mile-header nav a:hover {
+  color: var(--tb-yellow);
+}
+
+/* Brand mark fills (same as the homepage) */
+.mile-page .lm-l,
+.mile-page .lm-wand {
+  fill: var(--tb-brand-ink);
+}
+.mile-page .lm-mountain {
+  fill: var(--tb-brand-sky);
+}
+.mile-page .lm-face {
+  fill: var(--tb-brand-sky-light);
+}
+.mile-page .lm-star {
+  fill: var(--tb-brand-gold);
+}
+
+/* Glyphs drawn in SVG (the canvas draws the same shapes) */
+.mile-glyph {
+  display: inline-block;
+  height: 1.6em;
+  width: auto;
+  vertical-align: middle;
+  overflow: visible;
+  stroke-width: 0.07;
+  stroke-linejoin: round;
+}
+.mile-glyph.is-notes {
+  fill: var(--mile-note);
+  stroke: var(--mile-ink);
+}
+.mile-glyph.is-rest {
+  fill: rgb(139 200 244 / 0.18);
+  stroke: var(--mile-rest);
+}
+
+/* ---------------------------------------------------------------------------
+   The film. Without JavaScript, or under reduced motion, it is a plain page:
+   the title, every stop as a card and the closing lines. With the canvas
+   live (.is-live) the stage pins to the viewport for the whole mile.
+   --------------------------------------------------------------------------- */
+.mile-film {
+  position: relative;
+}
+.mile-stage {
+  position: relative;
+  isolation: isolate;
+  padding: 72px 0 96px;
+  overflow: clip;
+}
+.mile-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(
+    180deg,
+    #04061a 0%,
+    var(--mile-deep) 45%,
+    #05081a 100%
+  );
+}
+/* Live, the sky has a horizon where the road meets it */
+.mile-film.is-live .mile-sky {
+  background: linear-gradient(
+    180deg,
+    #04061a 0%,
+    var(--mile-deep) 34%,
+    #26347f var(--mile-horizon, 44%),
+    #0a0f2c calc(var(--mile-horizon, 44%) + 0.5%),
+    #05081a 100%
+  );
+}
+.mile-film.is-live .mile-sky::before,
+.mile-film.is-live .mile-sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* A warm band along the horizon */
+.mile-film.is-live .mile-sky::before {
+  background: radial-gradient(
+    ellipse 60% 22% at 50% var(--mile-horizon, 44%),
+    rgb(255 139 68 / 0.4),
+    rgb(255 190 35 / 0.12) 45%,
+    transparent 75%
+  );
+}
+/* The sunrise at the end of the road */
+.mile-film.is-live .mile-sky::after {
+  background: linear-gradient(
+    180deg,
+    rgb(255 139 68 / 0) 10%,
+    rgb(255 139 68 / 0.55) var(--mile-horizon, 44%),
+    rgb(255 190 35 / 0.18) calc(var(--mile-horizon, 44%) + 8%),
+    transparent 80%
+  );
+  opacity: var(--mile-dawn, 0);
+}
+.mile-sun {
+  display: none;
+}
+.mile-film.is-live .mile-sun {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: var(--mile-horizon, 44%);
+  width: min(46vw, 560px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(255 236 170 / 0.95),
+    rgb(255 190 35 / 0.75) 32%,
+    rgb(255 139 68 / 0.35) 52%,
+    transparent 70%
+  );
+  transform: translate(-50%, calc(-50% + (1 - var(--mile-dawn, 0)) * 26%))
+    scale(calc(0.5 + var(--mile-dawn, 0) * 0.5));
+  opacity: var(--mile-dawn, 0);
+  clip-path: inset(0 0 50% 0);
+}
+.mile-canvas {
+  display: none;
+}
+.mile-vignette,
+.mile-grain,
+.mile-bars,
+.mile-hud {
+  display: none;
+}
+
+.mile-presents {
+  margin: 0;
+  color: var(--tb-yellow);
+  font: 700 12px var(--tb-mono);
+  letter-spacing: 0.32em;
+}
+.mile-intro {
+  width: min(880px, calc(100% - 48px));
+  margin: 0 auto 64px;
+  text-align: center;
+}
+.mile-intro h1 {
+  margin: 18px 0 22px;
+  font-size: clamp(46px, 7.4vw, 108px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: 0.04em;
+  color: var(--tb-paper);
+  text-shadow:
+    0 0 48px rgb(255 190 35 / 0.35),
+    5px 5px 0 var(--tb-blue);
+}
+.mile-dream {
+  margin: 0;
+  font-size: clamp(17px, 1.9vw, 23px);
+  font-weight: 700;
+  line-height: 1.7;
+}
+.mile-dream span {
+  display: inline-block;
+}
+.mile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 22px 0 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.mile-legend .mile-glyph {
+  height: 26px;
+}
+.mile-legend .mile-glyph:not(:first-child) {
+  margin-left: 12px;
+}
+.mile-tally {
+  margin: 16px 0 0;
+  font: 700 13px var(--tb-mono);
+  letter-spacing: 0.12em;
+}
+.mile-tally b {
+  color: var(--tb-yellow);
+  font-size: 20px;
+}
+.mile-cue {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 28px;
+  padding: 12px 20px;
+  border: 2px solid var(--tb-paper);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mile-cue:hover {
+  background: var(--tb-paper);
+  color: var(--tb-ink);
+}
+
+.mile-prologue {
+  width: min(760px, calc(100% - 48px));
+  margin: 0 auto 72px;
+  text-align: center;
+}
+.mile-prologue-lines {
+  margin: 18px 0 0;
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 700;
+  line-height: 1.8;
+}
+.mile-prologue-lines span {
+  display: block;
+}
+/* Leonard's own wish, set like a line of lyrics */
+.mile-wish {
+  margin: 26px auto 0;
+  max-width: 30em;
+  text-wrap: balance;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 0.55);
+  color: var(--tb-yellow);
+  font-size: clamp(17px, 1.8vw, 22px);
+  font-weight: 900;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+}
+/* No-break spaces keep each ♪ on the line of the text beside it */
+.mile-wish::before {
+  content: "♪\00a0\00a0";
+  font-weight: 400;
+}
+.mile-wish::after {
+  content: "\00a0\00a0♪";
+  font-weight: 400;
+}
+
+/* Stops as cards (static layout) */
+.mile-stops {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  width: min(1260px, calc(100% - 96px));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+}
+.mile-stop {
+  position: relative;
+  padding: 22px 24px 24px;
+  background: var(--tb-paper);
+  color: var(--tb-ink);
+  border: 3px solid var(--tb-ink);
+  border-radius: 16px;
+  box-shadow: 7px 7px 0 var(--tb-yellow);
+}
+.mile-stop.is-waiting {
+  box-shadow: 7px 7px 0 var(--tb-sky);
+}
+.mile-stop-mark {
+  margin: 0;
+  font: 700 11px var(--tb-mono);
+  letter-spacing: 0.16em;
+  color: var(--tb-blue);
+}
+.mile-stop h2 {
+  margin: 8px 0 12px;
+  font-size: clamp(26px, 2.6vw, 40px);
+  font-weight: 900;
+  line-height: 1.2;
+}
+.mile-stop-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+.mile-stop-status .mile-glyph {
+  height: 40px;
+  flex: none;
+}
+.mile-stop.is-waiting .mile-glyph.is-rest {
+  fill: rgb(139 200 244 / 0.25);
+  stroke: var(--tb-blue);
+}
+.mile-stop-story {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.mile-stop-note {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.75;
+}
+.mile-finale {
+  width: min(760px, calc(100% - 48px));
+  margin: 72px auto 0;
+  text-align: center;
+}
+.mile-finale h2 {
+  margin: 14px 0 16px;
+  font-size: clamp(30px, 4.2vw, 56px);
+  font-weight: 900;
+  line-height: 1.3;
+  text-shadow: 4px 4px 0 var(--tb-blue);
+}
+.mile-finale > p:not(.mile-stop-mark, .mile-wish) {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.mile-finale .mile-wish {
+  margin: 14px auto 28px;
+}
+.mile-finale .mile-stop-mark {
+  color: var(--tb-yellow);
+}
+.mile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 22px;
+  background: var(--tb-yellow);
+  color: var(--tb-ink);
+  border: 3px solid var(--tb-ink);
+  border-radius: 9px;
+  box-shadow: 5px 5px 0 var(--tb-paper);
+  font-weight: 900;
+  font-size: 15px;
+}
+.mile-button:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--tb-paper);
+}
+.mile-button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--tb-paper);
+}
+
+/* ---------------------------------------------------------------------------
+   Live film
+   --------------------------------------------------------------------------- */
+.mile-film.is-live {
+  height: calc(100vh + (var(--mile-stops) + 2) * 64vh);
+  height: calc(100svh + (var(--mile-stops) + 2) * 64svh);
+}
+.mile-film.is-live .mile-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  padding: 0;
+  overflow: hidden;
+  --mile-bar: clamp(30px, 7.5vh, 68px);
+}
+.mile-film.is-live .mile-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+.mile-film.is-live .mile-vignette {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 75% 70% at 50% 46%,
+    transparent 55%,
+    rgb(0 0 0 / 0.55)
+  );
+}
+.mile-film.is-live .mile-intro,
+.mile-film.is-live .mile-prologue,
+.mile-film.is-live .mile-finale {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--mile-bar) + 4vh);
+  z-index: 2;
+  margin: 0;
+  translate: -50% 0;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.6s var(--tb-ease-out),
+    visibility 0s linear 0.6s;
+}
+.mile-film.is-live .mile-finale {
+  top: calc(var(--mile-horizon, 44%) - 30vh);
+}
+/* Keeps the title and the narration readable over the stars and the road */
+.mile-film.is-live .mile-intro::before,
+.mile-film.is-live .mile-prologue::before {
+  content: "";
+  position: absolute;
+  inset: -14% -18%;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgb(4 6 26 / 0.72),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.mile-film.is-live .mile-prologue {
+  top: calc(var(--mile-bar) + 3vh);
+}
+.mile-film.is-live .mile-intro.is-active,
+.mile-film.is-live .mile-prologue.is-active,
+.mile-film.is-live .mile-finale.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.8s var(--tb-ease-out),
+    visibility 0s;
+}
+.mile-film.is-live .mile-stops {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: auto;
+  display: block;
+  pointer-events: none;
+}
+.mile-film.is-live .mile-stop {
+  position: absolute;
+  top: calc(var(--mile-horizon, 44%) + 2vh);
+  width: min(430px, 36vw);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(0, 26px, 0) rotate(-1.5deg);
+  transition:
+    opacity 0.45s var(--tb-ease-out),
+    transform 0.6s var(--tb-ease-quint),
+    visibility 0s linear 0.45s;
+}
+.mile-film.is-live .mile-stop.on-left {
+  left: clamp(24px, 7vw, 120px);
+}
+.mile-film.is-live .mile-stop.on-right {
+  right: clamp(24px, 7vw, 120px);
+  transform: translate3d(0, 26px, 0) rotate(1.5deg);
+}
+.mile-film.is-live .mile-stop.is-active {
+  opacity: 1;
+  visibility: visible;
+  transform: rotate(-1.5deg);
+  transition:
+    opacity 0.6s var(--tb-ease-out),
+    transform 0.8s var(--tb-ease-spring),
+    visibility 0s;
+}
+.mile-film.is-live .mile-stop.on-right.is-active {
+  transform: rotate(1.5deg);
+}
+.mile-film.is-live .mile-stop h2 {
+  font-size: clamp(30px, 3.4vw, 50px);
+}
+
+/* Film grain, letterbox bars and the HUD that lives inside them */
+.mile-film.is-live .mile-grain {
+  display: block;
+  position: absolute;
+  inset: -50%;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.mile-film.is-live .mile-bars {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.mile-film.is-live .mile-bars::before,
+.mile-film.is-live .mile-bars::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--mile-bar);
+  background: #000;
+}
+.mile-film.is-live .mile-bars::before {
+  top: 0;
+  transform-origin: top;
+}
+.mile-film.is-live .mile-bars::after {
+  bottom: 0;
+  transform-origin: bottom;
+}
+.mile-film.is-live .mile-hud {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.mile-odometer {
+  position: absolute;
+  left: clamp(16px, 4vw, 56px);
+  top: calc(var(--mile-bar) / 2);
+  translate: 0 -50%;
+  margin: 0;
+  font: 700 12px var(--tb-mono);
+  letter-spacing: 0.22em;
+  color: var(--tb-paper);
+}
+.mile-odometer b {
+  display: inline-block;
+  min-width: 4ch;
+  color: var(--tb-yellow);
+  font-size: 15px;
+}
+.mile-sound {
+  position: absolute;
+  right: clamp(16px, 4vw, 56px);
+  top: calc(var(--mile-bar) / 2);
+  translate: 0 -50%;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 14px;
+  background: transparent;
+  border: 2px solid var(--tb-paper);
+  border-radius: 999px;
+  color: var(--tb-paper);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: auto;
+}
+.mile-sound[aria-pressed="true"] {
+  background: var(--tb-yellow);
+  border-color: var(--tb-yellow);
+  color: var(--tb-ink);
+}
+.mile-steps {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--mile-bar) / 2);
+  translate: -50% 50%;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+.mile-steps button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.mile-steps button span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--mile-note);
+  transition:
+    transform 0.4s var(--tb-ease-spring),
+    box-shadow 0.4s ease;
+}
+.mile-steps button.is-waiting span {
+  background: transparent;
+  border: 2px solid var(--mile-rest);
+}
+.mile-steps button[aria-current="step"] span {
+  transform: scale(1.6);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+}
+.mile-steps button:hover span {
+  transform: scale(1.35);
+}
+
+/* ---------------------------------------------------------------------------
+   End credits
+   --------------------------------------------------------------------------- */
+.mile-credits {
+  background: #000;
+  padding: 120px 0 140px;
+  text-align: center;
+}
+.mile-credits h2 {
+  margin: 16px 0 10px;
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.mile-credits-lead,
+.mile-credits-thanks {
+  margin: 0 auto;
+  max-width: 34em;
+  font-size: 16px;
+  line-height: 1.9;
+  opacity: 0.85;
+}
+.mile-credits-thanks {
+  margin-top: 56px;
+}
+.mile-credits-list {
+  width: min(640px, 100%);
+  margin: 48px auto 0;
+  display: grid;
+  gap: 20px;
+}
+.mile-credits-list > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: baseline;
+}
+.mile-credits-list dt {
+  text-align: right;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+}
+.mile-credits-list dd {
+  margin: 0;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--tb-yellow);
+}
+.mile-credits-list .is-waiting dd {
+  color: var(--tb-sky);
+  font-weight: 700;
+}
+.mile-credits-list dd small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tb-paper);
+  opacity: 0.75;
+}
+.mile-credits-author {
+  margin-top: 40px;
+}
+.mile-credits-author dd {
+  color: var(--tb-paper);
+}
+.mile-tbc {
+  margin: 96px 0 0;
+  font-size: clamp(28px, 3.6vw, 44px);
+  font-weight: 900;
+  letter-spacing: 0.3em;
+}
+.mile-tbc span {
+  display: block;
+  margin-top: 10px;
+  font: 700 12px var(--tb-mono);
+  letter-spacing: 0.5em;
+  color: var(--tb-yellow);
+}
+.mile-credits-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 18px 30px;
+  margin-top: 48px;
+}
+.mile-text-link {
+  border-bottom: 1px solid currentColor;
+  padding-block: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mile-text-link:hover {
+  color: var(--tb-yellow);
+}
+.mile-footer {
+  background: #000;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
+  font-size: 12px;
+}
+.mile-footer .mile-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 26px;
+}
+.mile-footer p {
+  margin: 0;
+}
+.mile-footer span {
+  font-family: var(--tb-mono);
+  letter-spacing: 0.2em;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   Phones and portrait screens
+   --------------------------------------------------------------------------- */
+@media (max-width: 760px) {
+  .mile-container,
+  .mile-stops {
+    width: calc(100% - 40px);
+  }
+  .mile-header-inner {
+    min-height: 66px;
+  }
+  .mile-header nav {
+    gap: 16px;
+    font-size: 13px;
+  }
+  .mile-brand small {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .mile-header nav a:first-child {
+    display: none;
+  }
+}
+@media (max-width: 760px), (max-aspect-ratio: 4/5) {
+  .mile-film.is-live .mile-stop,
+  .mile-film.is-live .mile-stop.on-left,
+  .mile-film.is-live .mile-stop.on-right {
+    left: 20px;
+    right: 20px;
+    top: auto;
+    bottom: calc(var(--mile-bar) + 18px);
+    width: auto;
+  }
+  .mile-film.is-live .mile-stop h2 {
+    font-size: clamp(26px, 7.4vw, 36px);
+    margin: 6px 0 10px;
+  }
+  .mile-film.is-live .mile-stop-status .mile-glyph {
+    height: 32px;
+  }
+  .mile-film.is-live .mile-intro {
+    top: calc(var(--mile-bar) + 3vh);
+  }
+  .mile-film.is-live .mile-finale {
+    top: auto;
+    bottom: calc(var(--mile-bar) + 5vh);
+  }
+  .mile-film.is-live .mile-finale h2 {
+    font-size: clamp(24px, 6.6vw, 32px);
+  }
+  .mile-prologue-lines {
+    font-size: clamp(17px, 4.6vw, 22px);
+  }
+  .mile-wish {
+    font-size: 15px;
+  }
+  .mile-steps {
+    gap: 0;
+  }
+  .mile-steps button {
+    width: 22px;
+  }
+  .mile-steps button span {
+    width: 8px;
+    height: 8px;
+  }
+  .mile-credits-list > div {
+    gap: 16px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+   --------------------------------------------------------------------------- */
+@keyframes mile-bars-in {
+  from {
+    transform: scaleY(2.6);
+  }
+}
+@keyframes mile-grain {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-6%, 4%);
+  }
+  50% {
+    transform: translate(5%, -7%);
+  }
+  75% {
+    transform: translate(-3%, 8%);
+  }
+}
+@keyframes mile-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0);
+    filter: blur(10px);
+  }
+}
+@keyframes mile-nudge {
+  50% {
+    transform: translate3d(0, 5px, 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mile-film.is-live .mile-bars::before,
+  .mile-film.is-live .mile-bars::after {
+    animation: mile-bars-in 1.4s var(--tb-ease-quint) both;
+  }
+  .mile-film.is-live .mile-grain {
+    animation: mile-grain 0.9s steps(4) infinite;
+  }
+  .mile-film.is-live .mile-intro.is-active > * {
+    animation: mile-rise 1.2s var(--tb-ease-quint) backwards;
+  }
+  .mile-film.is-live .mile-intro.is-active > :nth-child(2) {
+    animation-delay: 0.25s;
+  }
+  .mile-film.is-live .mile-intro.is-active > :nth-child(3) {
+    animation-delay: 0.5s;
+  }
+  .mile-film.is-live .mile-intro.is-active > :nth-child(n + 4) {
+    animation-delay: 0.75s;
+  }
+  /* The prologue is narrated line by line */
+  .mile-film.is-live .mile-prologue.is-active > *,
+  .mile-film.is-live .mile-prologue.is-active .mile-prologue-lines span {
+    animation: mile-rise 1.1s var(--tb-ease-quint) backwards;
+  }
+  .mile-film.is-live
+    .mile-prologue.is-active
+    .mile-prologue-lines
+    span:nth-child(2) {
+    animation-delay: 0.45s;
+  }
+  .mile-film.is-live
+    .mile-prologue.is-active
+    .mile-prologue-lines
+    span:nth-child(3) {
+    animation-delay: 0.9s;
+  }
+  .mile-film.is-live
+    .mile-prologue.is-active
+    .mile-prologue-lines
+    span:nth-child(4) {
+    animation-delay: 1.35s;
+  }
+  .mile-film.is-live .mile-prologue.is-active .mile-wish {
+    animation-delay: 1.9s;
+  }
+  .mile-cue span {
+    display: inline-block;
+    animation: mile-nudge 1.6s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mile-page *,
+  .mile-page *::before,
+  .mile-page *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

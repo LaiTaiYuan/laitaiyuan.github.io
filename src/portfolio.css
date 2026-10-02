@@ -1669,6 +1669,98 @@ html:not(.tb-js) .lp-lion-poke {
   color: var(--tb-line);
   margin-top: 5px;
 }
+/* Doorway to /last-mile/: the whole score of the dream, notes for the songs
+   already written and rests for the people still waiting for theirs */
+.lp-mile-teaser {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 28px;
+  margin-top: 44px;
+  padding: 24px 30px;
+  background: linear-gradient(120deg, #070b22, #10194a 62%, #26347f);
+  color: var(--tb-paper);
+  border: 3px solid var(--tb-paper);
+  border-radius: 16px;
+  box-shadow: 7px 7px 0 var(--tb-yellow);
+  transition:
+    transform 0.5s var(--tb-ease-quint),
+    box-shadow 0.5s var(--tb-ease-quint);
+}
+.lp-mile-teaser:hover {
+  transform: translate3d(-3px, -3px, 0);
+  box-shadow: 10px 10px 0 var(--tb-yellow);
+}
+.lp-mile-score {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 10px 6px;
+  /* five staff lines behind the glyphs */
+  background: repeating-linear-gradient(
+      180deg,
+      transparent 0 10px,
+      rgb(255 255 255 / 0.32) 10px 11px
+    )
+    center / 100% 55px no-repeat;
+}
+.lp-mile-score .mile-glyph {
+  height: clamp(24px, 3.6vw, 50px);
+  width: auto;
+  overflow: visible;
+  stroke-width: 0.07;
+  stroke-linejoin: round;
+}
+.lp-mile-score .is-notes {
+  fill: var(--tb-yellow);
+  stroke: var(--tb-ink);
+}
+.lp-mile-score .is-rest {
+  fill: rgb(139 200 244 / 0.18);
+  stroke: var(--tb-sky);
+}
+.lp-mile-copy small {
+  display: block;
+  font: 700 11px var(--tb-mono);
+  letter-spacing: 0.16em;
+  color: var(--tb-yellow);
+}
+.lp-mile-copy strong {
+  display: block;
+  margin: 8px 0 6px;
+  text-wrap: balance;
+  font-size: clamp(18px, 1.8vw, 24px);
+  font-weight: 900;
+  line-height: 1.4;
+}
+.lp-mile-copy > span {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.lp-mile-go {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 18px;
+  background: var(--tb-yellow);
+  color: var(--tb-ink);
+  border: 3px solid var(--tb-ink);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .lp-mile-teaser {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 22px 20px;
+  }
+  .lp-mile-go {
+    justify-self: start;
+  }
+}
 .lp-music-links {
   display: flex;
   align-items: center;

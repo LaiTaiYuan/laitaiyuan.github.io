@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import lion from "./data/lionScene.json";
+import { mileRests, mileSongs, mileStops } from "./data/lastMile";
 import { lionMotto } from "./data/lionQuips";
 import { profile, tracks } from "./data/profile";
 import { useLionHead } from "./lionHead";
+import { MileGlyph } from "./MileGlyph";
 import {
   useCursorBadge,
   useDaypart,
@@ -1205,6 +1207,27 @@ export default function Home() {
                 </article>
               ))}
             </div>
+            <a
+              className="lp-mile-teaser"
+              href={`${base}last-mile/`}
+              data-reveal=""
+            >
+              <span className="lp-mile-score" aria-hidden="true">
+                {mileStops.map((stop) => (
+                  <MileGlyph key={stop.who} songs={stop.songs} />
+                ))}
+              </span>
+              <span className="lp-mile-copy">
+                <small>THE LAST MILE · 我的人生最後一哩路</small>
+                <strong>把身邊遇到的人、事、物，都寫成歌。</strong>
+                <span>
+                  已完成 {mileSongs} 首，還有 {mileRests} 個休止符在路上。
+                </span>
+              </span>
+              <span className="lp-mile-go">
+                走這一哩路 <Arrow />
+              </span>
+            </a>
             <div className="lp-music-links" data-reveal="">
               <span>選一個喜歡的平台</span>
               <External href={links.spotify}>Spotify</External>

@@ -1,13 +1,21 @@
 import { renderToString } from "react-dom/server";
 import Home from "./Home";
+import LastMile from "./LastMile";
 import Toolbox from "./Toolbox";
+import { mileRests, mileSongs } from "./data/lastMile";
 import { profile, publicEvidence, tracks } from "./data/profile";
 
-export function render(page: "home" | "tools") {
-  return renderToString(page === "home" ? <Home /> : <Toolbox />);
+type Page = "home" | "tools" | "lastMile";
+
+export function render(page: Page) {
+  return renderToString(
+    page === "home" ? <Home /> : page === "tools" ? <Toolbox /> : <LastMile />,
+  );
 }
 
-export function structuredData(page: "home" | "tools") {
+const mileUrl = `${profile.url}last-mile/`;
+
+export function structuredData(page: Page) {
   const personId = `${profile.url}#person`;
   // Google keys the entity on `name`; the Chinese name people actually search
   // for is primary, with the English, artist and romanized forms as aliases.
@@ -142,17 +150,52 @@ export function structuredData(page: "home" | "tools") {
             ],
             isPartOf: { "@id": `${profile.url}#website` },
           }
-        : {
-            "@type": "CollectionPage",
-            "@id": `${profile.url}tools/#collection`,
-            url: `${profile.url}tools/`,
-            name: `Leonard 的工具小舖｜${profile.chineseName}的好工具收藏`,
-            description: `${profile.chineseName}（${profile.name}）分享親自使用的開源與原始碼公開工具、入門資源與版本更新。`,
-            inLanguage: "zh-Hant",
-            author: { "@id": personId },
-            isPartOf: { "@id": `${profile.url}#website` },
-            breadcrumb: { "@id": `${profile.url}tools/#breadcrumb` },
-          },
+        : page === "lastMile"
+          ? {
+              "@type": "WebPage",
+              "@id": `${mileUrl}#page`,
+              url: mileUrl,
+              name: `${profile.chineseName}的人生最後一哩路`,
+              description: `${profile.chineseName}想完成的夢想：把身邊遇到的人、事、物都寫成歌。已完成 ${mileSongs} 首，還有 ${mileRests} 段故事在路上。`,
+              inLanguage: "zh-Hant",
+              author: { "@id": personId },
+              about: { "@id": personId },
+              isPartOf: { "@id": `${profile.url}#website` },
+              breadcrumb: { "@id": `${mileUrl}#breadcrumb` },
+            }
+          : {
+              "@type": "CollectionPage",
+              "@id": `${profile.url}tools/#collection`,
+              url: `${profile.url}tools/`,
+              name: `Leonard 的工具小舖｜${profile.chineseName}的好工具收藏`,
+              description: `${profile.chineseName}（${profile.name}）分享親自使用的開源與原始碼公開工具、入門資源與版本更新。`,
+              inLanguage: "zh-Hant",
+              author: { "@id": personId },
+              isPartOf: { "@id": `${profile.url}#website` },
+              breadcrumb: { "@id": `${profile.url}tools/#breadcrumb` },
+            },
+      ...(page === "lastMile"
+        ? [
+            {
+              "@type": "BreadcrumbList",
+              "@id": `${mileUrl}#breadcrumb`,
+              itemListElement: [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: `${profile.chineseName} ${profile.name}`,
+                  item: profile.url,
+                },
+                {
+                  "@type": "ListItem",
+                  position: 2,
+                  name: "我的人生最後一哩路",
+                  item: mileUrl,
+                },
+              ],
+            },
+          ]
+        : []),
       ...(page === "tools"
         ? [
             {

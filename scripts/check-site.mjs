@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 
-for (const route of ["index.html", "tools/index.html"]) {
+for (const route of [
+  "index.html",
+  "tools/index.html",
+  "last-mile/index.html",
+]) {
   const html = await readFile(`dist/${route}`, "utf8");
   assert(
     !/noindex|http-equiv="refresh"/i.test(html),
@@ -61,6 +65,10 @@ for (const content of [
   assert(home.includes(content), `Homepage includes ${content}`);
 const sitemap = await readFile("dist/sitemap.xml", "utf8");
 assert(sitemap.includes("https://laitaiyuan.github.io/tools/"));
+assert(sitemap.includes("https://laitaiyuan.github.io/last-mile/"));
+const mile = await readFile("dist/last-mile/index.html", "utf8");
+assert(mile.includes("我的人生"), "Last mile page renders its title");
+assert(home.includes("last-mile/"), "Homepage links to the last mile page");
 const files = await readdir("dist", { recursive: true });
 const socialImage = await readFile("dist/og-image.png");
 assert.equal(socialImage.readUInt32BE(16), 1200, "Share image width");

@@ -13,6 +13,7 @@ try {
   for (const [page, file] of [
     ["home", "index.html"],
     ["tools", "tools/index.html"],
+    ["lastMile", "last-mile/index.html"],
   ]) {
     const path = resolve("dist", file);
     const html = await readFile(path, "utf8");
@@ -24,7 +25,7 @@ try {
         `<script type="application/ld+json">${json}</script>`,
       );
     await writeFile(path, rendered);
-    console.log(`Prerendered /${page === "home" ? "" : "tools/"}`);
+    console.log(`Prerendered /${file.replace(/index\.html$/, "")}`);
   }
 } finally {
   await server.close();

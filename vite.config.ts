@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         home: path.join(root, "index.html"),
         tools: path.join(root, "tools/index.html"),
+        lastMile: path.join(root, "last-mile/index.html"),
       },
     },
   },
