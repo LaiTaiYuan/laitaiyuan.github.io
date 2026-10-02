@@ -798,24 +798,17 @@ export default function Home() {
                     <span>familyfinhealth.com</span>
                   </div>
                   <div className="lp-family-mark">
-                    <svg
-                      viewBox="0 0 120 96"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="5"
-                    >
-                      <path
-                        d="m16 45 44-32 44 32M28 38v45h64V38M49 83V59h22v24"
-                        pathLength={1}
-                      />
-                      <path
-                        d="M71 31c-9-14-26-3-20 8l20 17 20-17c6-11-11-22-20-8Z"
-                        fill="var(--tb-coral)"
-                        strokeWidth="3"
-                        pathLength={1}
-                      />
-                    </svg>
-                    <strong>好理家在</strong>
+                    {/* Official logo from familyfinhealth.com, unmodified
+                        (see docs/content-sources.md) */}
+                    <img
+                      className="lp-family-logo"
+                      src={`${base}images/familyfinhealth-logo.svg`}
+                      alt="好理家在"
+                      width="1118"
+                      height="540"
+                      loading="lazy"
+                      decoding="async"
+                    />
                     <span>財務健檢網</span>
                   </div>
                   <div className="lp-mini-chips">

@@ -712,16 +712,17 @@ html:not(.tb-js) .lp-lion-poke {
   display: flex;
   align-items: center;
   flex-direction: column;
-  padding-block: 19px 16px;
+  gap: 10px;
+  padding-block: 34px 26px;
 }
-.lp-family-mark svg {
-  width: 100px;
-  height: 80px;
-}
-.lp-family-mark strong {
-  font-size: 38px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
+/* The official artboard has wide empty bands above and below the mark; the
+   cover crop keeps the middle half, where the whole logo sits. */
+.lp-family-logo {
+  display: block;
+  width: min(300px, 84%);
+  height: auto;
+  aspect-ratio: 1118 / 280;
+  object-fit: cover;
 }
 .lp-family-mark > span {
   font-size: 12px;
@@ -2176,11 +2177,11 @@ html:not(.tb-js) .lp-lion-poke {
     width: 100%;
     align-self: center;
   }
-  .lp-family-mark strong {
-    font-size: 32px;
+  .lp-family-mark {
+    padding-block: 28px 22px;
   }
-  .lp-family-mark svg {
-    height: 65px;
+  .lp-family-logo {
+    width: min(260px, 84%);
   }
   .lp-award-ribbon {
     font-size: 12px;
@@ -2554,16 +2555,6 @@ html:not(.tb-js) .lp-lion-poke {
   }
   to {
     clip-path: inset(0 0 0 0);
-  }
-}
-@keyframes lp-draw-fill {
-  from {
-    stroke-dashoffset: 1;
-    fill-opacity: 0;
-  }
-  to {
-    stroke-dashoffset: 0;
-    fill-opacity: 1;
   }
 }
 @keyframes lp-pop-fade {
@@ -3127,8 +3118,7 @@ html:not(.tb-js) .lp-lion-poke {
      without scroll-driven animations keep the timed reveal above) */
   @supports (animation-timeline: view()) {
     .lp-work .lp-featured-project .lp-browser-bar span,
-    .lp-work .lp-featured-project .lp-family-mark svg path,
-    .lp-work .lp-featured-project .lp-family-mark strong,
+    .lp-work .lp-featured-project .lp-family-logo,
     .lp-work .lp-featured-project .lp-family-mark > span,
     .lp-work .lp-featured-project .lp-mini-chips span,
     .lp-work .lp-featured-project .lp-award-ribbon {
@@ -3142,12 +3132,10 @@ html:not(.tb-js) .lp-lion-poke {
       animation-name: lp-type;
       animation-timing-function: steps(18);
     }
-    .lp-work .lp-featured-project .lp-family-mark svg path {
-      stroke-dasharray: 1;
-      animation-name: lp-draw-fill;
-      animation-timing-function: linear;
+    .lp-work .lp-featured-project .lp-family-logo {
+      animation-name: lp-pop-fade;
+      animation-timing-function: var(--tb-ease-spring);
     }
-    .lp-work .lp-featured-project .lp-family-mark strong,
     .lp-work .lp-featured-project .lp-family-mark > span {
       animation-name: lp-rise;
       animation-timing-function: var(--tb-ease-quint);

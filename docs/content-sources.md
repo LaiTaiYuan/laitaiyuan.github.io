@@ -13,6 +13,7 @@
 ## 好理家在與獎項
 
 - [好理家在－財務健檢網](https://www.familyfinhealth.com/)：家庭財務健檢與專業協助的公開產品。
+- 精選實作卡片模擬視窗中的好理家在 Logo，取自官網 `https://www.familyfinhealth.com/assets/images/DBS_logo.svg`（官網標示為「好理家在-財務健檢網官方 Logo」；2026-10-02 下載，原檔未修改，存為 `public/images/familyfinhealth-logo.svg`）。依本人要求放在介紹好理家在的位置，用來標示他參與開發與營運的專案，Logo 權利屬於好理家在；頁面只以 CSS 裁去畫布上下空白，不改色、不變形。
 - [2025-12-09 獲獎消息](https://www.familyfinhealth.com/news/1)：馴錢師以好理家在獲 2025 IT Matters「AI Selected 社會影響力獎」。獎項在本站歸屬專案／團隊。
 - [輔大資管系 2025-12-10 報導](https://www.instagram.com/p/DSEMGJgD8Nz/)與[同篇 Facebook 貼文](https://www.facebook.com/FJUIM/posts/1316354283624666)：指出賴泰元為第 32 屆系友，運用 AI 完成系統開發及營運。本人角色採此報導的可核對描述。
 - 報導中的創辦人「賴政昌」是另一人；本站不把創辦人身分或公司成立年份套用至賴泰元。
