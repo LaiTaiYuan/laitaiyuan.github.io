@@ -33,4 +33,6 @@
 
 同日新增的「我的人生最後一哩路」頁另確認：以 Chromium（Intel Iris Xe 硬體繪圖）在 1440×900 與 390×844 觸控尺寸逐段截圖，片名、序、十二站（音符雕塑與休止符各自在卡片另一側，手機卡片在下方不遮擋）、站與站之間的推移與日出終點皆正確，四首歌的寬音符在手機不出界，終點雙小節線不壓到結語；跳站按鈕可用鍵盤操作並更新 `aria-current`，聲音開關切換 `aria-pressed`（本次環境無法試聽）；減少動態偏好與停用 JavaScript 時顯示完整靜態版（十二張卡、序、片尾名單），無水平溢出。首頁音樂區入口在 1440 與 390px 正常。ESLint、TypeScript、5 項測試、正式建置、三頁預渲染與 `check-site.mjs`（新頁的身分、標題與 sitemap 檢查）通過，三頁 hydration 無錯誤。
 
+同日的品牌標誌改版另確認：`public/brand/` 三個標誌檔與本人提供的原檔逐位元組相同，`favicon.svg` 即 App 圖示；`scripts/build-brand-icons.py` 產生的 16、32、180、192、512px PNG 與 16／32／48px ICO 尺寸正確，180px 為滿版方形，重跑結果逐像素一致。以 Chromium 在 1280×900 與 390、320px 逐格截圖品牌故事舞台：聚光燈、L 落下、I 彈起、A 左右兩半飛入合起、核心爆成四芒星、碎星與「ACTION!」、三個字母依序跳動皆正確，演完停在完整標誌，「再演一次」可重播；`prefers-reduced-motion: reduce` 與停用 JavaScript 時直接顯示完成畫面，不顯示重播鈕。首頁與人生最後一哩路頁的頁首徽章載入 `lai-logo.svg`，favicon、manifest 與標誌檔皆回應 200，無主控台錯誤。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。

@@ -42,10 +42,10 @@
   border-radius: 14px;
   box-shadow: 3px 3px 0 var(--tb-ink);
 }
-.lp-monogram svg {
-  width: 66%;
-  height: 66%;
-  overflow: visible;
+.lp-monogram img {
+  display: block;
+  width: 74%;
+  height: auto;
 }
 .lp-header nav {
   display: flex;
@@ -1171,11 +1171,12 @@ html:not(.tb-js) .lp-lion-poke {
   margin: 0;
   font-family: var(--tb-mono);
 }
-/* Brand mark story (src/BrandMark.tsx): the symbol performs on a dark comic
-   stage. Lights flicker on, the L drops in and squashes, the mountain springs
-   up like jelly, the wand spins in, winds up and swings; the star bursts,
-   "ACTION!" pops and the L and mountain hop. Colours are the --tb-brand-*
-   tokens; without JavaScript or with reduced motion the finished mark shows. */
+/* Brand mark story (src/BrandMark.tsx): the LAI logo performs on a deep-blue
+   comic stage. Lights flicker on, the L drops in and squashes, the I springs
+   up, the two halves of the A fly in and clap together, the core star swells
+   and bursts with "ACTION!", then the letters hop. Colours are the four
+   --tb-brand-* tokens plus white; without JavaScript or with reduced motion
+   the finished logo shows. */
 .lp-mark {
   background: var(--tb-blue-light);
   border-top: 3px solid var(--tb-ink);
@@ -1202,7 +1203,7 @@ html:not(.tb-js) .lp-lion-poke {
 }
 .lp-mark-parts > div {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  grid-template-columns: 92px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
   padding: 11px 14px;
@@ -1237,17 +1238,17 @@ html:not(.tb-js) .lp-lion-poke {
   color: var(--tb-ink);
 }
 .lm-l,
-.lm-wand {
-  fill: var(--tb-brand-ink);
+.lm-i {
+  fill: var(--tb-brand-deep);
 }
-.lm-mountain {
-  fill: var(--tb-brand-sky);
+.lm-a-left {
+  fill: var(--tb-brand-bright);
 }
-.lm-face {
-  fill: var(--tb-brand-sky-light);
+.lm-a-right {
+  fill: var(--tb-brand-light);
 }
 .lm-star {
-  fill: var(--tb-brand-gold);
+  fill: var(--tb-brand-amber);
 }
 .lm-white {
   fill: var(--tb-white);
@@ -1261,7 +1262,7 @@ html:not(.tb-js) .lp-lion-poke {
   border: 3px solid var(--tb-ink);
   border-radius: 16px;
   box-shadow: 7px 7px 0 var(--tb-ink);
-  background: var(--tb-ink);
+  background: var(--tb-brand-deep);
   overflow: clip;
 }
 .lp-mark-spot {
@@ -1270,12 +1271,12 @@ html:not(.tb-js) .lp-lion-poke {
   background:
     radial-gradient(
       ellipse 48% 62% at 50% 4%,
-      rgb(255 240 200 / 0.26),
+      rgb(255 255 255 / 0.18),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 46% 14% at 50% 79%,
-      rgb(255 240 200 / 0.14),
+      ellipse 46% 14% at 50% 78%,
+      rgb(255 255 255 / 0.1),
       transparent 72%
     );
   pointer-events: none;
@@ -1288,38 +1289,33 @@ html:not(.tb-js) .lp-lion-poke {
   height: 84%;
   overflow: visible;
 }
+/* 深色舞台用反白版：L 與 I 變成白色 */
 .lp-mark-stage .lm-l,
-.lp-mark-stage .lm-wand {
+.lp-mark-stage .lm-i {
   fill: var(--tb-white);
 }
-.lp-mark-stage .lm-mountain {
-  fill: var(--tb-brand-sky-night);
-}
-.lp-mark-stage .lm-face {
-  fill: var(--tb-brand-ridge-night);
-}
 .lm-floor {
-  fill: rgb(255 240 200 / 0.08);
+  fill: rgb(255 255 255 / 0.08);
 }
 .lm-burst path,
 .lm-action {
   opacity: 0;
 }
 .lm-action polygon {
-  fill: var(--tb-yellow);
-  stroke: var(--tb-ink);
+  fill: var(--tb-brand-amber);
+  stroke: var(--tb-brand-deep);
   stroke-width: 3;
   stroke-linejoin: round;
 }
 .lm-action text {
-  fill: var(--tb-ink);
+  fill: var(--tb-brand-deep);
   font: italic 900 14px var(--tb-display);
   letter-spacing: 0.02em;
   text-anchor: middle;
 }
 .lm-hop,
 .lm-part,
-.lm-sway,
+.lm-a-clap,
 .lm-twinkle,
 .lm-burst path,
 .lm-action {
@@ -1327,10 +1323,11 @@ html:not(.tb-js) .lp-lion-poke {
   transform-origin: 50% 50%;
 }
 .lm-hop,
+.lm-a-clap,
 .lm-l-in,
-.lm-mountain-in,
-.lm-sway,
-.lm-wand-in {
+.lm-i-in,
+.lm-a-left-in,
+.lm-a-right-in {
   transform-origin: 50% 100%;
 }
 .lp-mark-replay {
@@ -3562,7 +3559,7 @@ html:not(.tb-js) .lp-lion-poke {
   }
 }
 /* Brand mark story: the show only runs once it is on screen (data-phase is
-   set by src/BrandMark.tsx); idle twinkles pause when it scrolls away. */
+   set by src/BrandMark.tsx); the idle twinkle pauses when it scrolls away. */
 @media (prefers-reduced-motion: no-preference) {
   .lp-mark-stage[data-phase="armed"] .lm-part,
   .lp-mark-stage[data-phase="armed"] .lp-mark-spot {
@@ -3572,41 +3569,41 @@ html:not(.tb-js) .lp-lion-poke {
     animation: lm-lights 0.6s linear both;
   }
   .lp-mark-stage[data-phase="playing"] .lm-l-in {
-    animation: lm-drop 0.85s 0.35s both;
+    animation: lm-drop 0.85s 0.3s both;
   }
-  .lp-mark-stage[data-phase="playing"] .lm-mountain-in {
-    animation: lm-spring 0.95s 0.95s both;
+  .lp-mark-stage[data-phase="playing"] .lm-i-in {
+    animation: lm-spring 0.8s 0.85s both;
   }
-  .lp-mark-stage[data-phase="playing"] .lm-wand-in {
-    animation: lm-wand 2.3s 1.5s both;
+  .lp-mark-stage[data-phase="playing"] .lm-a-left-in {
+    animation: lm-fly-in-left 0.6s 1.35s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-a-right-in {
+    animation: lm-fly-in-right 0.6s 1.35s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-a-clap {
+    animation: lm-clap 0.85s 1.92s both;
   }
   .lp-mark-stage[data-phase="playing"] .lm-star-in {
-    animation: lm-star 0.8s 3.15s both;
-  }
-  .lp-mark-stage[data-phase="playing"] .lm-spark-in {
-    animation: lm-star 0.6s 3.45s both;
+    animation: lm-core 1.15s 2.25s both;
   }
   .lp-mark-stage[data-phase="playing"] .lm-burst path {
-    animation: lm-fly 0.9s calc(3.15s + var(--delay, 0s))
+    animation: lm-fly 0.9s calc(2.97s + var(--delay, 0s))
       cubic-bezier(0.15, 0.8, 0.25, 1) both;
   }
   .lp-mark-stage[data-phase="playing"] .lm-action {
-    animation: lm-action 1.3s 3.18s both;
-  }
-  .lp-mark-stage[data-phase="playing"] .lm-hop-mountain {
-    animation: lm-hop 0.55s 3.35s both;
+    animation: lm-action 1.3s 3s both;
   }
   .lp-mark-stage[data-phase="playing"] .lm-hop-l {
-    animation: lm-hop 0.55s 3.5s both;
+    animation: lm-hop 0.55s 3.25s both;
   }
-  .lp-mark-stage[data-phase="done"][data-inview] .lm-twinkle-star {
+  .lp-mark-stage[data-phase="playing"] .lm-hop-a {
+    animation: lm-hop 0.55s 3.37s both;
+  }
+  .lp-mark-stage[data-phase="playing"] .lm-hop-i {
+    animation: lm-hop 0.55s 3.49s both;
+  }
+  .lp-mark-stage[data-phase="done"][data-inview] .lm-twinkle {
     animation: lm-twinkle 3.6s 0.4s ease-in-out infinite;
-  }
-  .lp-mark-stage[data-phase="done"][data-inview] .lm-twinkle-spark {
-    animation: lm-twinkle 3.6s 1.6s ease-in-out infinite;
-  }
-  .lp-mark-stage[data-phase="done"][data-inview] .lm-sway {
-    animation: lm-sway 4.8s ease-in-out infinite;
   }
 }
 @keyframes lm-lights {
@@ -3684,60 +3681,84 @@ html:not(.tb-js) .lp-lion-poke {
     transform: none;
   }
 }
-@keyframes lm-wand {
+@keyframes lm-fly-in-left {
   0% {
     opacity: 0;
-    transform: translate(200px, -220px) rotate(-720deg) scale(0.5);
-    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+    transform: translateX(-190px) rotate(-28deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
   }
-  2% {
+  1% {
     opacity: 1;
-  }
-  30% {
-    transform: rotate(14deg) scale(1.08, 0.9);
-    animation-timing-function: ease-out;
-  }
-  38% {
-    transform: rotate(-7deg) scale(0.97, 1.04);
-  }
-  46% {
-    transform: none;
-    animation-timing-function: ease-in-out;
-  }
-  60% {
-    transform: rotate(-26deg);
-  }
-  66% {
-    transform: rotate(-28deg);
-    animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1.4);
-  }
-  74% {
-    transform: rotate(32deg);
-    animation-timing-function: ease-out;
-  }
-  84% {
-    transform: rotate(-9deg);
-  }
-  92% {
-    transform: rotate(4deg);
   }
   100% {
     opacity: 1;
     transform: none;
   }
 }
-@keyframes lm-star {
+@keyframes lm-fly-in-right {
   0% {
     opacity: 0;
-    transform: scale(0) rotate(-180deg);
+    transform: translateX(190px) rotate(28deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
   }
   1% {
     opacity: 1;
   }
-  45% {
-    transform: scale(1.8) rotate(15deg);
+  100% {
+    opacity: 1;
+    transform: none;
   }
-  70% {
+}
+/* 兩半合起來「啪」一聲壓扁，接著在核心點亮前抖幾下蓄力 */
+@keyframes lm-clap {
+  0% {
+    transform: none;
+  }
+  10% {
+    transform: scale(1.16, 0.84);
+  }
+  30% {
+    transform: scale(0.96, 1.05);
+  }
+  45% {
+    transform: none;
+  }
+  55% {
+    transform: translateX(-1.5px) rotate(-1deg);
+  }
+  65% {
+    transform: translateX(1.5px) rotate(1deg);
+  }
+  75% {
+    transform: translateX(-1.5px) rotate(-1deg);
+  }
+  85% {
+    transform: translateX(1.5px) rotate(1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+/* 核心：先冒出一個小亮點，縮一下蓄力，再爆開成星 */
+@keyframes lm-core {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  1% {
+    opacity: 1;
+  }
+  30% {
+    transform: scale(0.32);
+  }
+  42% {
+    transform: scale(0.24);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.2, 1.4);
+  }
+  62% {
+    transform: scale(1.9) rotate(20deg);
+  }
+  80% {
     transform: scale(0.85) rotate(-6deg);
   }
   100% {
@@ -3807,22 +3828,10 @@ html:not(.tb-js) .lp-lion-poke {
     transform: none;
   }
   88% {
-    transform: scale(1.25) rotate(45deg);
+    transform: scale(1.3) rotate(45deg);
   }
   100% {
     transform: rotate(90deg);
-  }
-}
-@keyframes lm-sway {
-  0%,
-  100% {
-    transform: none;
-  }
-  30% {
-    transform: rotate(-3deg);
-  }
-  70% {
-    transform: rotate(2.5deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -60,10 +60,10 @@
   border-radius: 13px;
   box-shadow: 3px 3px 0 var(--tb-yellow);
 }
-.mile-monogram svg {
-  width: 66%;
-  height: 66%;
-  overflow: visible;
+.mile-monogram img {
+  display: block;
+  width: 74%;
+  height: auto;
 }
 .mile-header nav {
   display: flex;
@@ -73,21 +73,6 @@
 }
 .mile-header nav a:hover {
   color: var(--tb-yellow);
-}
-
-/* Brand mark fills (same as the homepage) */
-.mile-page .lm-l,
-.mile-page .lm-wand {
-  fill: var(--tb-brand-ink);
-}
-.mile-page .lm-mountain {
-  fill: var(--tb-brand-sky);
-}
-.mile-page .lm-face {
-  fill: var(--tb-brand-sky-light);
-}
-.mile-page .lm-star {
-  fill: var(--tb-brand-gold);
 }
 
 /* Glyphs drawn in SVG (the canvas draws the same shapes) */

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { BrandSymbol } from "./BrandMark";
+import { BrandLogo } from "./BrandMark";
 import {
   mileProlog,
   mileRests,
@@ -39,7 +39,7 @@ export default function LastMile() {
             aria-label="賴泰元 Leonard Lai 個人網站首頁"
           >
             <span className="mile-monogram" aria-hidden="true">
-              <BrandSymbol small />
+              <BrandLogo />
             </span>
             <span>
               LEONARD LAI<small>賴泰元的創作基地</small>

@@ -20,7 +20,7 @@ import {
 import type { Daypart } from "./motion";
 import { useStoryDots } from "./storyDots";
 import { useStackGame } from "./stackGame";
-import { BrandStorySection, BrandSymbol } from "./BrandMark";
+import { BrandLogo, BrandStorySection } from "./BrandMark";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
@@ -684,7 +684,7 @@ export default function Home() {
             aria-label="Leonard Lai 個人網站首頁"
           >
             <span className="lp-monogram" aria-hidden="true">
-              <BrandSymbol small />
+              <BrandLogo />
             </span>
             <span>
               LEONARD LAI<small>賴泰元的創作基地</small>

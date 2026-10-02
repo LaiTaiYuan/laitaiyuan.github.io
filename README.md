@@ -32,7 +32,8 @@ npm run preview
 - `src/storyDots.ts`：首頁網點故事的 canvas 引擎與捲動章節 hook（字形取樣成六角網屏、彈簧物理、游標撥開、點擊衝擊波、離開畫面即暫停）。
 - `src/stackGame.ts`：首頁「Full Stack 疊疊樂」小遊戲的等角 canvas 引擎、音效與狀態 hook；每層標籤與稱號在 `src/Home.tsx`。
 - `src/lionHead.ts`：首頁獅子轉頭與說話——WebGL 把底圖頭部當橡皮膜變形（轉頭、歪頭、點頭、張嘴），眼睛先看、頭再跟上，閒置時自己張望與跟著音樂點頭；對白 hook 依滑鼠、觸控與鍵盤選台詞。台詞與笑話在 `src/data/lionQuips.ts`。
-- `src/BrandMark.tsx`、`src/data/brandMark.ts`：品牌符號（L、山、魔法棒與星拼成 LAI）的靜態版、頁首徽章與首頁「品牌符號故事」的舞台動畫；路徑資料由品牌符號的參數產生器輸出，不手改座標。`public/favicon.svg`、`favicon.ico` 與 `apple-touch-icon.png` 是同一個符號；工具頁保留自己的 `tools-favicon.svg`。
+- `public/brand/`：品牌標誌原檔——`lai-logo.svg`（主標誌，淺色背景）、`lai-logo-reversed.svg`（反白版，深色背景）、`lai-app-icon.svg`（App 圖示 512×512）。`src/BrandMark.tsx` 的頁首徽章直接引用原檔；首頁「品牌標誌故事」的舞台動畫用 `src/data/brandMark.ts` 的同一組座標拆開各部件，標誌改版時以原檔為準更新。
+- `scripts/build-brand-icons.py`：由 App 圖示產生 `public/favicon.svg`、`favicon.ico`（16／32／48）、`favicon-16.png`、`favicon-32.png`、`apple-touch-icon.png`（180，方形滿版，讓 iOS 自己裁圓角），以及 `site.webmanifest` 用的 `icon-192.png`、`icon-512.png`；需要 Pillow 與 Playwright。工具頁保留自己的 `tools-favicon.svg`。
 - `scripts/build-lion-scene.py`、`scripts/build-images.py`：由原始插畫與照片產生首頁獅子場景圖層與 WebP／AVIF 響應式圖片，見 `docs/lion-art.md`。
 - `last-mile/index.html`、`src/LastMile.tsx`、`src/lastMile.css`：「我的人生最後一哩路」頁，一部用歌寫成的人生電影；`src/mileRoad.ts` 是五線譜公路的 canvas 引擎、捲動場景與 Web Audio 鈴聲，`src/MileGlyph.tsx` 以同一組形狀畫出音符與休止符（首頁音樂區的入口也用它）。
 - `src/data/lastMile.ts`：這一哩路上的每一站。寫好一首新歌時，把那一站的 `songs` 改成首數，休止符就會變成音符、首頁與片尾名單的數字一起更新；每站的 `story` 可以直接改成自己的話。
