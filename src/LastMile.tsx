@@ -5,6 +5,7 @@ import {
   mileRests,
   mileSongs,
   mileStops,
+  mileSubtitle,
   mileWish,
 } from "./data/lastMile";
 import { MileGlyph } from "./MileGlyph";
@@ -81,9 +82,12 @@ export default function LastMile() {
                 <br />
                 最後一哩路
               </h1>
+              <p className="mile-subtitle">
+                <span>{mileSubtitle}</span>
+              </p>
               <p className="mile-dream">
-                <span>我想完成一個夢想：</span>
-                <span>把身邊遇到的人、事、物，都寫成歌。</span>
+                <span>把身邊遇到的人、事、物，</span>
+                <span>都寫成歌。</span>
               </p>
               <p className="mile-legend">
                 <MileGlyph songs={1} />

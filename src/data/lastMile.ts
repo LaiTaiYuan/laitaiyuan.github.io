@@ -78,6 +78,10 @@ export const mileStops: MileStop[] = [
   },
 ];
 
+// Under the film's title, in Leonard's words (2026-10-02): the last mile is
+// the dream of a lifetime, not the end of one.
+export const mileSubtitle = "一輩子要完成的夢想";
+
 // Spoken while the camera flies in; the last line is Leonard's own wish.
 export const mileProlog = [
   "有些人，陪我走了很長的路；",

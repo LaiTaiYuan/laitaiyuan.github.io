@@ -2,7 +2,7 @@ import { renderToString } from "react-dom/server";
 import Home from "./Home";
 import LastMile from "./LastMile";
 import Toolbox from "./Toolbox";
-import { mileRests, mileSongs } from "./data/lastMile";
+import { mileRests, mileSongs, mileSubtitle } from "./data/lastMile";
 import { profile, publicEvidence, tracks } from "./data/profile";
 
 type Page = "home" | "tools" | "lastMile";
@@ -156,7 +156,8 @@ export function structuredData(page: Page) {
               "@id": `${mileUrl}#page`,
               url: mileUrl,
               name: `${profile.chineseName}的人生最後一哩路`,
-              description: `${profile.chineseName}想完成的夢想：把身邊遇到的人、事、物都寫成歌。已完成 ${mileSongs} 首，還有 ${mileRests} 段故事在路上。`,
+              alternativeHeadline: mileSubtitle,
+              description: `${profile.chineseName}一輩子要完成的夢想：把身邊遇到的人、事、物都寫成歌。已完成 ${mileSongs} 首，還有 ${mileRests} 段故事在路上。`,
               inLanguage: "zh-Hant",
               author: { "@id": personId },
               about: { "@id": personId },

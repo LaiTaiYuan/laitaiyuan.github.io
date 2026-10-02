@@ -217,7 +217,7 @@
   text-align: center;
 }
 .mile-intro h1 {
-  margin: 18px 0 22px;
+  margin: 18px 0 16px;
   font-size: clamp(46px, 7.4vw, 108px);
   font-weight: 900;
   line-height: 1.08;
@@ -226,6 +226,29 @@
   text-shadow:
     0 0 48px rgb(255 190 35 / 0.35),
     5px 5px 0 var(--tb-blue);
+}
+/* The subtitle under the title, between two short rules like a film's */
+.mile-subtitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  color: var(--tb-yellow);
+  font-size: clamp(17px, 1.9vw, 24px);
+  font-weight: 900;
+  letter-spacing: 0.3em;
+}
+.mile-subtitle span {
+  margin-right: -0.3em; /* the last letter's spacing would push it off centre */
+}
+.mile-subtitle::before,
+.mile-subtitle::after {
+  content: "";
+  width: clamp(24px, 5vw, 64px);
+  height: 2px;
+  background: currentColor;
+  opacity: 0.7;
 }
 .mile-dream {
   margin: 0;

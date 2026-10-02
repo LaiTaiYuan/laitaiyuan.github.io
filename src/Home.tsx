@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import lion from "./data/lionScene.json";
-import { mileRests, mileSongs, mileStops } from "./data/lastMile";
+import { mileRests, mileSongs, mileStops, mileSubtitle } from "./data/lastMile";
 import { lionMotto } from "./data/lionQuips";
 import { profile, tracks } from "./data/profile";
 import { useLionHead } from "./lionHead";
@@ -1218,7 +1218,7 @@ export default function Home() {
                 ))}
               </span>
               <span className="lp-mile-copy">
-                <small>THE LAST MILE · 我的人生最後一哩路</small>
+                <small>我的人生最後一哩路 · {mileSubtitle}</small>
                 <strong>把身邊遇到的人、事、物，都寫成歌。</strong>
                 <span>
                   已完成 {mileSongs} 首，還有 {mileRests} 個休止符在路上。
