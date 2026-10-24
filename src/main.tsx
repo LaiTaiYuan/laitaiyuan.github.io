@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import Home from "./Home";
 import "./toolbox.css";
 import "./portfolio.css";
+import "./islands.css";
 
 // Belt and braces for the inline script in index.html: mark the page for
 // reveal-on-scroll before hydration (see useReveal in motion.ts).

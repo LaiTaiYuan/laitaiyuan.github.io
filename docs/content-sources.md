@@ -65,6 +65,13 @@
 - 已上架的歌與寫給誰由本人對應（2026-10-02）：老婆——Aurora in July；小孩——Aurora in July、Baby RAP、賴沛小蘋果、歡迎光臨，小孩（Aurora in July 依本人選擇同時列在老婆與小孩兩站）；eGroup 團隊・James——本人 YouTube 頻道的「James之歌」（https://www.youtube.com/watch?v=cLasHwXHVpE，標題以 YouTube oEmbed 核對）。2026-10-24 本人另對應：eGroup 團隊・Ivy——「IVY 生日快樂MV」（https://www.youtube.com/watch?v=Sq1yCRfcBmI）；高中同學——「展翅 - 高98甲，我們巔峰見」MV（https://www.youtube.com/watch?v=w-iRX68osZo，本人更正後提供的公開網址）。兩支影片的標題以 YouTube oEmbed 核對，皆在本人「賴泰元」頻道；Ivy 一站的心意句提到生日，取自影片標題。Spotify 連結取自上方已核對的曲目 ID；其餘完成的歌未列出連結。
 - 序的前四句與每一站的一句話（`src/data/lastMile.ts` 的 `story`）由本站依上述夢想撰寫，只寫心意與願望，不寫未經本人提供的回憶或事實，本人可隨時改寫。
 
+## LAI 群島
+
+- 依本人要求（2026-10-24）在首頁加入互動群島。呈現方式（等大島塊拼成一個輪廓、點島飛入、島與島之間的動線、晨昏光線）參考本人提供的網址 https://puma.taipei/heart-island ，依本人要求只參考呈現與前端技術（three.js）；島形、模型、文字與程式皆為本站原創，未使用該站的素材或內容。
+- 三座島的形狀就是品牌標誌 LAI（與 `public/brand/lai-logo.svg` 同一組座標），「你的島」是留給訪客的空白小島。
+- 地標說明取自本頁已確認的內容：資料庫、Java、Spring Boot、RESTful API 與 AWS 認證（專長與證照）；疊疊樂；LAI 標誌的 AI 核心之星（品牌標誌）；好理家在與 2025 IT Matters 獎項、台大癌醫的專業技術指導與團隊銅獎（精選實作）；AIEC 送測的三個步驟；音樂作品首數與最新單曲取自 `src/data/profile.ts`，最後一哩路已完成首數取自 `src/data/lastMile.ts`；工具小舖與「分享你的故事」沿用首頁文字。「島跟島之間也靠 API 橋來回」是依專長寫的玩笑，不代表任何系統架構。
+- 島上的角色依本人要求（2026-10-24）都是動物：台灣藍鵲、小獅子與海龜只是插畫角色，路線「聽 → 寫 → 創」沿用首頁的核心價值，不代表實際工作流程或成果。獅子的台詞沿用 `src/data/lionQuips.ts` 的語氣，其中「Spring Boot 啟動中，先泡杯咖啡」與「LLM 很有自信，但答錯了」是既有台詞。
+
 ## 圖像
 
 - `public/images/leonard-it-matters-2025.jpg`：本人提供的 2025 IT Matters Awards 形象照，原圖複製；網頁僅以 CSS 呈現比例，未修改本人外觀。

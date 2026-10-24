@@ -21,6 +21,7 @@ import type { Daypart } from "./motion";
 import { useStoryDots } from "./storyDots";
 import { useStackGame } from "./stackGame";
 import { BrandLogo, BrandStorySection } from "./BrandMark";
+import { IslandsSection } from "./Islands";
 
 const base = import.meta.env.BASE_URL;
 const links = profile.links;
@@ -1394,6 +1395,8 @@ export default function Home() {
             </p>
           </div>
         </section>
+
+        <IslandsSection />
 
         <section
           className="lp-contact"

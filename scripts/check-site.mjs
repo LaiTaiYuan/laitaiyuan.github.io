@@ -63,6 +63,15 @@ for (const content of [
   "leonard-it-matters-2025.jpg",
 ])
   assert(home.includes(content), `Homepage includes ${content}`);
+// The LAI islands prerender as readable HTML (map, guide and links); the
+// three.js world is a separate chunk that only loads near the section.
+assert(home.includes("這片群島"), "Homepage renders the LAI islands");
+assert.equal(
+  (home.match(/class="isl-entry"/g) ?? []).length,
+  4,
+  "The island guide lists four islands",
+);
+assert(!/islandWorld/.test(home), "The 3D islands load lazily");
 const sitemap = await readFile("dist/sitemap.xml", "utf8");
 assert(sitemap.includes("https://laitaiyuan.github.io/tools/"));
 assert(sitemap.includes("https://laitaiyuan.github.io/last-mile/"));
