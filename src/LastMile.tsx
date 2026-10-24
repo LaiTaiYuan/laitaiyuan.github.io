@@ -8,6 +8,7 @@ import {
   mileSubtitle,
   mileWish,
 } from "./data/lastMile";
+import type { MileStop } from "./data/lastMile";
 import { MileGlyph } from "./MileGlyph";
 import {
   PROLOGUE,
@@ -23,6 +24,26 @@ const sunrise = sunriseScene(mileStops.length);
 // Where on the mile each stop sits (the odometer reads the same number when
 // the camera holds there).
 const mileAt = (stop: number) => (sceneOfStop(stop) / sunrise).toFixed(2);
+
+// The finished songs that are already out, each opening on its platform.
+function Listen({ stop }: { stop: MileStop }) {
+  return (
+    <ul className="mile-listen" aria-label={`聽寫給${stop.who}的歌`}>
+      {stop.listen?.map((song) => (
+        <li key={song.url}>
+          <a href={song.url} target="_blank" rel="noopener noreferrer">
+            <span className="mile-listen-play" aria-hidden="true">
+              ▶
+            </span>
+            {song.title}
+            <small>{song.on}</small>
+            <span className="toolbox-sr-only">（另開分頁）</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function LastMile() {
   const film = useLastMile(mileStops);
@@ -156,6 +177,7 @@ export default function LastMile() {
                     </p>
                     <p className="mile-stop-story">{stop.story}</p>
                     {stop.note && <p className="mile-stop-note">{stop.note}</p>}
+                    {stop.listen && <Listen stop={stop} />}
                   </li>
                 );
               })}
@@ -243,6 +265,23 @@ export default function LastMile() {
                   <dd>
                     {stop.songs ? `${stop.songs} 首` : "還在路上"}
                     {stop.note && <small>{stop.note}</small>}
+                    {stop.listen && (
+                      <small className="mile-credits-songs">
+                        {stop.listen.map((song) => (
+                          <a
+                            key={song.url}
+                            href={song.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {song.title}
+                            <span className="toolbox-sr-only">
+                              （在 {song.on} 聆聽，另開分頁）
+                            </span>
+                          </a>
+                        ))}
+                      </small>
+                    )}
                   </dd>
                 </div>
               ))}

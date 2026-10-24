@@ -1,3 +1,5 @@
+import { tracks } from "./profile";
+
 // 「我的人生最後一哩路」(/last-mile/): Leonard's dream, in his words
 // (2026-10-02), to turn the people, things and moments around him into songs,
 // and his hope that these stories and memories become classics that keep
@@ -6,30 +8,64 @@
 // rest, and turns into notes as soon as its count goes up, so finishing a song
 // only needs this number changed. `story` is a line about what the song is
 // for: wishes and intentions only, never a memory or a fact he has not shared,
-// so he can rewrite any of them in his own words.
+// so he can rewrite any of them in his own words. `listen` links the finished
+// songs that are already out, as Leonard matched them (2026-10-02).
+export type MileListen = {
+  title: string;
+  url: string;
+  on: "Spotify" | "YouTube";
+};
+
 export type MileStop = {
   who: string;
   songs: number;
   story: string;
   note?: string;
+  listen?: MileListen[];
 };
+
+// A song from the Spotify catalogue in profile.ts, by title (a typo fails the
+// build instead of shipping a dead link).
+function spotify(title: string): MileListen {
+  const track = tracks.find((item) => item.title === title);
+  if (!track) throw new Error(`No Spotify track called ${title}`);
+  return {
+    title: track.title,
+    url: `https://open.spotify.com/track/${track.id}`,
+    on: "Spotify",
+  };
+}
 
 export const mileStops: MileStop[] = [
   {
     who: "老婆",
     songs: 3,
     story: "把我們一起走過的日常，寫成只屬於我們的旋律。",
+    listen: [spotify("Aurora in July")],
   },
   {
     who: "小孩",
     songs: 4,
     story: "看著你們長大的每一天，我都想用歌記下來。",
     note: "其中一首是小孩們的 RAP 團體歌",
+    listen: [
+      spotify("Aurora in July"),
+      spotify("Baby RAP"),
+      spotify("賴沛小蘋果"),
+      spotify("歡迎光臨，小孩"),
+    ],
   },
   {
     who: "eGroup 團隊・James",
     songs: 1,
     story: "工作路上並肩的夥伴，也值得一首歌。",
+    listen: [
+      {
+        title: "James之歌",
+        url: "https://www.youtube.com/watch?v=cLasHwXHVpE",
+        on: "YouTube",
+      },
+    ],
   },
   {
     who: "爺爺奶奶",

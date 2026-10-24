@@ -35,4 +35,6 @@
 
 同日的品牌標誌改版另確認：`public/brand/` 三個標誌檔與本人提供的原檔逐位元組相同，`favicon.svg` 即 App 圖示；`scripts/build-brand-icons.py` 產生的 16、32、180、192、512px PNG 與 16／32／48px ICO 尺寸正確，180px 為滿版方形，重跑結果逐像素一致。以 Chromium 在 1280×900 與 390、320px 逐格截圖品牌故事舞台：聚光燈、L 落下、I 彈起、A 左右兩半飛入合起、核心爆成四芒星、碎星與「ACTION!」、三個字母依序跳動皆正確，演完停在完整標誌，「再演一次」可重播；`prefers-reduced-motion: reduce` 與停用 JavaScript 時直接顯示完成畫面，不顯示重播鈕。首頁與人生最後一哩路頁的頁首徽章載入 `lai-logo.svg`，favicon、manifest 與標誌檔皆回應 200，無主控台錯誤。
 
+同日的「聽這首」連結另確認：老婆、小孩與 eGroup 團隊・James 三站的卡片與片尾名單各自連到本人指定的 Spotify 曲目與 YouTube「James之歌」，連結皆另開分頁；在固定舞台中點擊目前這一站的連結可正常開啟；手機上播放連結兩個一列，卡片不遮住音符；曲名對不到 `profile.ts` 的曲目時建置會失敗。
+
 公開內容的事實與歸屬見 [content-sources.md](content-sources.md)。搜尋引擎收錄與排名不在上述部署檢查的保證範圍。
