@@ -10,7 +10,7 @@ export default defineConfig({
   base: process.env.PAGES_BASE_PATH || "/",
   plugins: [react()],
   build: {
-    // The LAI islands' three.js chunk (about 650 kB) only loads near its
+    // The LAI islands' three.js chunk (about 670 kB) only loads near its
     // section; every chunk on the initial page load stays far below this.
     chunkSizeWarningLimit: 700,
     rollupOptions: {

@@ -37,7 +37,7 @@ npm run preview
 - `scripts/build-lion-scene.py`、`scripts/build-images.py`：由原始插畫與照片產生首頁獅子場景圖層與 WebP／AVIF 響應式圖片，見 `docs/lion-art.md`。
 - `last-mile/index.html`、`src/LastMile.tsx`、`src/lastMile.css`：「我的人生最後一哩路」頁，一部用歌寫成的人生電影；`src/mileRoad.ts` 是五線譜公路的 canvas 引擎、捲動場景與 Web Audio 鈴聲，`src/MileGlyph.tsx` 以同一組形狀畫出音符與休止符（首頁音樂區的入口也用它）。
 - `src/data/lastMile.ts`：這一哩路上的每一站。寫好一首新歌時，把那一站的 `songs` 改成首數，休止符就會變成音符、首頁與片尾名單的數字一起更新；每站的 `story` 可以直接改成自己的話。
-- `src/Islands.tsx`、`src/islands.css`：首頁「LAI 群島」區塊（舞台、島嶼導覽、平面地圖後備）；`src/islandWorld.ts` 是 three.js 的群島世界（島形取自品牌標誌、沙灘斷崖草地、網點海面、toon 光影與墨線、動物路線、鏡頭、近看與晨昏），`src/islandModels.ts` 是地標與動物模型，兩者只在區塊接近畫面時以獨立 chunk 載入；島、地標與說明文字在 `src/data/islands.ts`，地標連到網站上對應的作品或頁面。
+- `src/Islands.tsx`、`src/islands.css`：首頁「LAI 群島」區塊（舞台、島嶼導覽、平面地圖後備）；`src/islandWorld.ts` 是 three.js 的群島世界（島形取自品牌標誌、沙灘斷崖草地、網點海面、toon 光影與墨線、動物路線、鏡頭、近看與晨昏），`src/islandModels.ts` 是地標與動物模型，兩者只在區塊接近畫面時以獨立 chunk 載入；島、地標與說明文字在 `src/data/islands.ts`，地標連到網站上對應的作品或頁面；點地標、抱動物與彩蛋的對白在 `src/data/islandPlay.ts`。
 - `src/data/profile.ts`：姓名、平台連結與音樂作品。
 - `docs/content-sources.md`：公開事實來源、角色歸屬、本人提供的照片與插畫出處。
 - `src/entry-server.tsx` 與 `scripts/prerender.mjs`：建置時產生兩頁完整 HTML 與 JSON-LD，瀏覽器再 hydrate；停用 JavaScript 仍可閱讀及使用連結。

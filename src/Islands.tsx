@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { brandLogo } from "./data/brandMark";
+import { allEggsLine, islandEggs, playLines } from "./data/islandPlay";
+import type { EggId, PlayAct, PlayId } from "./data/islandPlay";
 import {
   islandRoutes,
   islandSpotCount,
@@ -8,7 +10,7 @@ import {
   youIsland,
 } from "./data/islands";
 import type { IslandId } from "./data/islands";
-import type { IslandWorld } from "./islandWorld";
+import type { IslandEvents, IslandWorld } from "./islandWorld";
 import { useDaypart } from "./motion";
 import type { Daypart } from "./motion";
 
@@ -19,21 +21,35 @@ const dayparts: readonly { id: Daypart; short: string; label: string }[] = [
   { id: "evening", short: "昏", label: "黃昏" },
   { id: "night", short: "夜", label: "夜晚" },
 ];
+const konami = [
+  "ArrowUp",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "b",
+  "a",
+];
+
+type Handlers = Pick<IslandEvents, "pick" | "look" | "play" | "turned">;
 
 // Loads the three.js world (src/islandWorld.ts) once the section is near, and
 // runs it only while the section is on screen. Until then, and wherever WebGL
 // is missing or software-only, the static map stays.
-function useIslandWorld(pick: (id: IslandId | null) => void) {
+function useIslandWorld(handlers: Handlers) {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<IslandWorld | null>(null);
-  const pickRef = useRef(pick);
+  const handlersRef = useRef(handlers);
   const [live, setLive] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    pickRef.current = pick;
-  }, [pick]);
+    handlersRef.current = handlers;
+  });
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -63,7 +79,10 @@ function useIslandWorld(pick: (id: IslandId | null) => void) {
             stage,
             canvas,
             {
-              pick: (id) => pickRef.current(id),
+              pick: (id) => handlersRef.current.pick(id),
+              look: (index) => handlersRef.current.look(index),
+              play: (id, act, eggs) => handlersRef.current.play(id, act, eggs),
+              turned: (on) => handlersRef.current.turned(on),
               reveal: () => setRevealed(true),
               lost: drop,
             },
@@ -176,11 +195,129 @@ function IslandMap({
   );
 }
 
+// The eggs found in this browser, kept between visits where storage works.
+const eggStore = "lai-islands-eggs";
+const storage = {
+  get() {
+    try {
+      return window.localStorage.getItem(eggStore);
+    } catch {
+      return null;
+    }
+  },
+  set(value: string) {
+    try {
+      window.localStorage.setItem(eggStore, value);
+    } catch {
+      // Private mode or blocked storage: the eggs are there to find again.
+    }
+  },
+};
+
+type Said = { key: number; name: string; line: string };
+
+// What the islands say back (data/islandPlay.ts): the lion's bubble, the note
+// when an easter egg turns up, and the eggs this browser has found.
+function useIslandPlay() {
+  const [say, setSay] = useState<Said | null>(null);
+  const [toast, setToast] = useState<{ key: number; text: string } | null>(
+    null,
+  );
+  const [found, setFound] = useState<ReadonlySet<EggId>>(() => new Set());
+  const [heard, setHeard] = useState("");
+  const foundRef = useRef(found);
+  const told = useRef(new Map<string, number>());
+  const count = useRef(0);
+  const hints = useRef(0);
+  // Set while a button speaks for the islands, so screen readers hear the
+  // answer too (the bubble itself is decoration).
+  const aloud = useRef(false);
+
+  useEffect(() => {
+    const saved = storage.get();
+    if (!saved) return;
+    try {
+      const ids: unknown = JSON.parse(saved);
+      if (!Array.isArray(ids)) return;
+      const next = new Set(
+        islandEggs.map((egg) => egg.id).filter((id) => ids.includes(id)),
+      );
+      foundRef.current = next;
+      setFound(next);
+    } catch {
+      // Unreadable: start the hunt over.
+    }
+  }, []);
+  useEffect(() => {
+    if (!say) return;
+    const timer = window.setTimeout(() => setSay(null), 5200);
+    return () => window.clearTimeout(timer);
+  }, [say]);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const speak = useCallback((name: string, line: string) => {
+    count.current += 1;
+    setSay({ key: count.current, name, line });
+    if (aloud.current)
+      setHeard(`${name}：${line}${count.current % 2 ? " " : ""}`);
+  }, []);
+  const play = useCallback(
+    (id: PlayId, act: PlayAct, eggs?: readonly EggId[]) => {
+      const fresh = eggs?.find((egg) => !foundRef.current.has(egg));
+      const egg = islandEggs.find((item) => item.id === fresh);
+      if (egg) {
+        const next = new Set(foundRef.current).add(egg.id);
+        foundRef.current = next;
+        setFound(next);
+        storage.set(JSON.stringify([...next]));
+        speak(`彩蛋：${egg.name}`, egg.line);
+        setToast({
+          key: count.current,
+          text:
+            next.size === islandEggs.length
+              ? allEggsLine
+              : `找到彩蛋 ${next.size}/${islandEggs.length}：${egg.name}`,
+        });
+        return;
+      }
+      const entry = playLines[id];
+      const lines = entry[act] ?? entry.poke;
+      const key = `${id}.${act}`;
+      const turn = told.current.get(key) ?? 0;
+      told.current.set(key, turn + 1);
+      speak(entry.name, lines[turn % lines.length]);
+    },
+    [speak],
+  );
+  // The counter's hint: the next egg still hidden, in turn.
+  const hint = useCallback(() => {
+    const left = islandEggs.filter((egg) => !foundRef.current.has(egg.id));
+    if (!left.length) {
+      speak("彩蛋", allEggsLine);
+      return;
+    }
+    speak("提示", left[hints.current % left.length].hint);
+    hints.current += 1;
+  }, [speak]);
+  const out = useCallback((act: () => void) => {
+    aloud.current = true;
+    act();
+    aloud.current = false;
+  }, []);
+  return { say, toast, found, heard, play, hint, out };
+}
+
 export function IslandsSection() {
   const [focus, setFocus] = useState<IslandId | null>(null);
   const [spot, setSpot] = useState<number | null>(null);
   // The landmark the camera has flown up to, within the focused island.
   const [look, setLook] = useState<number | null>(null);
+  // The visitor has dragged the view away from its framing.
+  const [turned, setTurned] = useState(false);
   const [chosenTime, setChosenTime] = useState<Daypart | null>(null);
   const taipei = useDaypart();
   const time = chosenTime ?? taipei;
@@ -189,8 +326,37 @@ export function IslandsSection() {
     setSpot(null);
     setLook(null);
   }, []);
-  const world = useIslandWorld(choose);
-  const { worldRef, live } = world;
+  const fun = useIslandPlay();
+  const { play } = fun;
+  const world = useIslandWorld({
+    pick: choose,
+    look: setLook,
+    play,
+    turned: setTurned,
+  });
+  const { worldRef, live, stageRef } = world;
+
+  // ↑↑↓↓←→←→BA while the islands are on screen: everyone parties.
+  useEffect(() => {
+    let at = 0;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("input, textarea, select, [contenteditable]")
+      )
+        return;
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      at = key === konami[at] ? at + 1 : key === konami[0] ? 1 : 0;
+      if (at < konami.length) return;
+      at = 0;
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect || rect.bottom < 0 || rect.top > window.innerHeight) return;
+      worldRef.current?.party();
+      play("konami", "poke", ["konami"]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [play, stageRef, worldRef]);
 
   useEffect(() => {
     worldRef.current?.focus(focus);
@@ -205,14 +371,30 @@ export function IslandsSection() {
     worldRef.current?.look(look);
   }, [look, focus, live, worldRef]);
 
+  const hudRef = useRef<HTMLDivElement>(null);
   const current = islands.find((island) => island.id === focus);
   const looking = look === null ? undefined : current?.spots[look];
   const toggleLook = (index: number) =>
     setLook((value) => (value === index ? null : index));
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
+    const fromHud =
+      event.target instanceof Node && hudRef.current?.contains(event.target);
     if (look !== null) setLook(null);
     else if (focus) choose(null);
+    else return;
+    // The HUD button that had focus may be gone now (「戳一下」, or the back
+    // button itself); keep keyboard focus close by so Escape keeps working.
+    if (fromHud)
+      window.requestAnimationFrame(() => {
+        if (document.activeElement !== document.body) return;
+        (
+          hudRef.current?.querySelector<HTMLButtonElement>(".isl-back") ??
+          document.querySelector<HTMLButtonElement>(
+            `.isl-entry[data-island="${focus}"] h3 button`,
+          )
+        )?.focus();
+      });
   };
 
   return (
@@ -237,7 +419,9 @@ export function IslandsSection() {
             <br />
             還有一座留給你。等鏡頭從海面飛上天空，
             <br />
-            再點一座島，走進它的風景。
+            再點一座島，走進它的風景。拖曳可以轉動群島、
+            <br />
+            抱起島上的動物，還藏著 {islandEggs.length} 個彩蛋。
           </p>
         </div>
         <div className="isl-board" data-live={live ? "" : undefined}>
@@ -292,34 +476,79 @@ export function IslandsSection() {
                 )),
               )}
             </div>
-            <div className="isl-hud">
-              {focus && (
-                <button
-                  type="button"
-                  className="isl-back"
-                  onClick={() => (looking ? setLook(null) : choose(null))}
-                >
-                  <span aria-hidden="true">←</span>{" "}
-                  {looking ? `回到${current?.name}` : "回到群島"}
-                </button>
-              )}
-              <div className="isl-time" role="group" aria-label="群島的時間">
-                {dayparts.map((part) => (
+            <div className="isl-hud" ref={hudRef}>
+              <div className="isl-hud-main">
+                {focus && (
                   <button
                     type="button"
-                    key={part.id}
-                    aria-pressed={time === part.id}
-                    aria-label={part.label}
-                    title={part.label}
-                    onClick={() =>
-                      setChosenTime(part.id === taipei ? null : part.id)
-                    }
+                    className="isl-back"
+                    onClick={() => (looking ? setLook(null) : choose(null))}
                   >
-                    {part.short}
+                    <span aria-hidden="true">←</span>{" "}
+                    {looking ? `回到${current?.name}` : "回到群島"}
                   </button>
-                ))}
+                )}
+                {looking && (
+                  <button
+                    type="button"
+                    className="isl-back isl-poke"
+                    onClick={() => fun.out(() => worldRef.current?.poke())}
+                  >
+                    <span aria-hidden="true">👆</span> 戳一下
+                  </button>
+                )}
+                {turned && (
+                  <button
+                    type="button"
+                    className="isl-back"
+                    onClick={() => worldRef.current?.straighten()}
+                  >
+                    <span aria-hidden="true">↺</span> 轉回正面
+                  </button>
+                )}
+              </div>
+              <div className="isl-hud-side">
+                <div className="isl-time" role="group" aria-label="群島的時間">
+                  {dayparts.map((part) => (
+                    <button
+                      type="button"
+                      key={part.id}
+                      aria-pressed={time === part.id}
+                      aria-label={part.label}
+                      title={part.label}
+                      onClick={() =>
+                        setChosenTime(part.id === taipei ? null : part.id)
+                      }
+                    >
+                      {part.short}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="isl-eggs"
+                  aria-label={`彩蛋：找到 ${fun.found.size} 個，共 ${islandEggs.length} 個。聽一個提示`}
+                  title="彩蛋提示"
+                  onClick={() => fun.out(fun.hint)}
+                >
+                  <span aria-hidden="true">🥚</span>
+                  <span>
+                    <b>{fun.found.size}</b>/{islandEggs.length}
+                  </span>
+                </button>
               </div>
             </div>
+            <p className="isl-toast" role="status">
+              {fun.toast && (
+                <span key={fun.toast.key}>
+                  <span aria-hidden="true">🥚 </span>
+                  {fun.toast.text}
+                </span>
+              )}
+            </p>
+            <p className="toolbox-sr-only" aria-live="polite">
+              {fun.heard}
+            </p>
             <p className="isl-lion" aria-hidden="true">
               <img
                 src={`${base}images/lion/head.webp`}
@@ -331,12 +560,19 @@ export function IslandsSection() {
               />
               <span
                 key={
-                  looking?.name ??
-                  current?.id ??
-                  (world.revealed ? "up" : "low")
+                  fun.say
+                    ? `say-${fun.say.key}`
+                    : (looking?.name ??
+                      current?.id ??
+                      (world.revealed ? "up" : "low"))
                 }
               >
-                {looking ? (
+                {fun.say ? (
+                  <>
+                    <strong>{fun.say.name}</strong>
+                    {fun.say.line}
+                  </>
+                ) : looking ? (
                   <>
                     <strong>{looking.name}</strong>
                     {current?.lion}
@@ -346,7 +582,7 @@ export function IslandsSection() {
                 ) : world.revealed ? (
                   <>
                     <strong>從上面看，是 LAI 😎</strong>
-                    點一座島，帶你飛過去
+                    點島飛過去，拖曳可以轉一圈
                   </>
                 ) : (
                   "抓好，要起飛囉 ✈️"

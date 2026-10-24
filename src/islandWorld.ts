@@ -1,10 +1,12 @@
 import {
   AdditiveBlending,
   BackSide,
+  Box3,
   BufferGeometry,
   CanvasTexture,
   CatmullRomCurve3,
   Color,
+  CylinderGeometry,
   DataTexture,
   DirectionalLight,
   ExtrudeGeometry,
@@ -22,6 +24,7 @@ import {
   Object3D,
   PCFShadowMap,
   PerspectiveCamera,
+  Plane,
   PlaneGeometry,
   Points,
   PointsMaterial,
@@ -52,6 +55,7 @@ import {
 import { brandLogo } from "./data/brandMark";
 import { islands, youIsland } from "./data/islands";
 import type { IslandId } from "./data/islands";
+import type { EggId, PlayAct, PlayId } from "./data/islandPlay";
 import {
   aiStar,
   ball,
@@ -76,7 +80,7 @@ import {
   tones,
   toolShop,
 } from "./islandModels";
-import type { Kit, Model, Tokens } from "./islandModels";
+import type { Kit, Model, Pet, Tokens } from "./islandModels";
 import type { Daypart } from "./motion";
 
 // 「LAI 群島」 in WebGL (three.js, loaded only when the section comes near).
@@ -90,10 +94,13 @@ import type { Daypart } from "./motion";
 // 創 loop running (magpies bring stories in from the visitor's island, lion
 // cubs carry them over the API bridges and grow them at the AI star, turtles
 // bring the finished work back), and the islands live their own lives:
-// Leonard's lion typing at his desk, a black bear at the Java café, a
-// leopard cat at the record player, gulls round the cloud tower, pink
-// dolphins jumping, fireflies at night. Decoration only: every word and link
-// lives in the HTML around the canvas. Models are in islandModels.ts.
+// Leonard's lion typing at his desk with the orange-and-white cat in its bed,
+// a black bear at the Java café, a leopard cat at the record player, gulls
+// round the cloud tower, pink dolphins jumping, fireflies at night. It is a
+// toy too: drag to turn the islands round, pick the animals up and drop them
+// (they find their way home), poke any landmark, and find the easter eggs.
+// Decoration only: every word and link lives in the HTML around the canvas
+// (the jokes in data/islandPlay.ts). Models are in islandModels.ts.
 
 const S = 0.1; // world units per logo unit
 const ORIGIN = [111, 100] as const; // logo point at the world origin
@@ -443,6 +450,33 @@ function textures(hex: Record<keyof Tokens, string>) {
     g.quadraticCurveTo(32, 32, 32, 2);
     g.fill();
   });
+  // A coral heart, for a purring cat and a happy home
+  const heart = drawn(64, 64, (g) => {
+    g.clearRect(0, 0, 64, 64);
+    g.beginPath();
+    g.moveTo(32, 55);
+    g.bezierCurveTo(4, 37, 5, 9, 21, 9);
+    g.bezierCurveTo(27, 9, 31, 13, 32, 18);
+    g.bezierCurveTo(33, 13, 37, 9, 43, 9);
+    g.bezierCurveTo(59, 9, 60, 37, 32, 55);
+    g.closePath();
+    g.fillStyle = hex.coral;
+    g.strokeStyle = ink;
+    g.lineWidth = 5;
+    g.lineJoin = "round";
+    g.fill();
+    g.stroke();
+  });
+  // A falling raindrop, drawn as a short streak
+  const drop = drawn(32, 32, (g) => {
+    g.clearRect(0, 0, 32, 32);
+    const gradient = g.createLinearGradient(0, 2, 0, 30);
+    gradient.addColorStop(0, "rgba(255,255,255,0)");
+    gradient.addColorStop(1, "rgba(255,255,255,1)");
+    g.fillStyle = gradient;
+    roundRect(g, 13, 2, 6, 28, 3);
+    g.fill();
+  });
   // Soft round glow for lights, and a darker one for shadows under animals
   const glow = drawn(64, 64, (g) => {
     const gradient = g.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -540,6 +574,8 @@ function textures(hex: Record<keyof Tokens, string>) {
     bubble,
     note,
     spark,
+    heart,
+    drop,
     glow,
     blob,
     ring,
@@ -753,6 +789,12 @@ export type IslandWorld = {
   spot(index: number | null): void;
   // Fly up close to one landmark of the focused island.
   look(index: number | null): void;
+  // Poke the landmark the camera is up close to (the 「戳一下」 button).
+  poke(): void;
+  // Every landmark and animal at once, with fireworks (the Konami code).
+  party(): void;
+  // Turn the view back to the way it was framed.
+  straighten(): void;
   destroy(): void;
 };
 
@@ -761,6 +803,14 @@ export type IslandEvents = {
   // The camera has risen high enough for the name to read.
   reveal(): void;
   lost(): void;
+  // A landmark of the focused island was clicked: fly up close to it.
+  look(index: number): void;
+  // Something answered the visitor: a landmark or animal was poked, or an
+  // animal picked up or put down. `eggs`: the easter eggs this counts for,
+  // the first one not yet found wins. The words are in data/islandPlay.ts.
+  play(id: PlayId, act: PlayAct, eggs?: readonly EggId[]): void;
+  // The visitor has dragged the view away from its framing, or back.
+  turned(on: boolean): void;
 };
 
 type Pose = { target: Vector3; yaw: number; pitch: number; distance: number };
@@ -774,7 +824,36 @@ type Carrier = {
   size: number;
   pitch: boolean;
   move(t: number, u: number, previous: number): void;
+  // Kept busy while it is held up in the air.
+  hold(t: number): void;
   last: number;
+  // Seconds spent off the route (held or finding the way back), so it picks
+  // up where it was taken from.
+  delay: number;
+  away: boolean;
+};
+
+// Where a picked-up animal is: at home (its landmark or its route), held,
+// falling, sitting where it landed (or bobbing in the sea), or hopping home.
+type Motion =
+  | { mode: "home" }
+  | { mode: "held"; since: number }
+  | { mode: "fall"; wet: boolean }
+  | { mode: "rest"; until: number; wet: boolean }
+  | { mode: "hop"; from: Vector3; start: number; duration: number };
+
+type Critter = Pet & {
+  kind: "land" | "sea" | "air";
+  carrier?: Carrier;
+  // Where it lives on its landmark (local to `parent`).
+  parent: Object3D | null;
+  home: { position: Vector3; quaternion: Quaternion; scale: Vector3 };
+  motion: Motion;
+  at: Vector3;
+  velocity: Vector3;
+  boing: number;
+  // Real shadows (landmark animals) or a soft blob (route animals).
+  blob: Mesh | null;
 };
 
 export function createIslandWorld(
@@ -1548,6 +1627,14 @@ export function createIslandWorld(
       island: "you",
     });
   }
+  // Nothing grows where an animal lives (the cat's bed by the desk).
+  scene.updateMatrixWorld(true);
+  const dens = landmarks.flatMap(({ model }) =>
+    (model.pets ?? []).map((pet) => pet.group.getWorldPosition(new Vector3())),
+  );
+  const roomy = (p: Plant) =>
+    dens.every((den) => Math.hypot(p.x - den.x, p.z - den.z) > 0.6);
+  plants.splice(0, plants.length, ...plants.filter(roomy));
   const shapes = flora();
   const leafDeep = paint(c.leafDeep);
   const leaf = paint(c.leaf);
@@ -1658,6 +1745,7 @@ export function createIslandWorld(
       }
     }
   }
+  dots.splice(0, dots.length, ...dots.filter(roomy));
   const flowerColors = [c.coral, c.yellow, c.white];
   flowerColors.forEach((color, kind) => {
     const list = dots.filter((p) => p.kind === kind);
@@ -1781,6 +1869,44 @@ export function createIslandWorld(
   // Landmarks (and the animals that stay put) cast shadows; the animals on
   // the move get a soft blob under them instead.
   for (const root of islandRoots.values()) bake(root, true);
+  // Merged into their islands, landmarks are found by clicks through
+  // invisible stand-ins.
+  const standIn = new CylinderGeometry(0.62, 0.62, 1, 12).translate(0, 0.5, 0);
+  const proxies = landmarks.map((item, index) => {
+    const proxy = new Mesh(standIn);
+    proxy.visible = false;
+    proxy.scale.y = item.model.height;
+    proxy.position.copy(item.at);
+    proxy.userData.landmark = index;
+    islandRoots.get(item.island)?.add(proxy);
+    return proxy;
+  });
+
+  // Animals the visitor can pick up: the ones that live at a landmark, and
+  // the ones on the three routes below.
+  const critters: Critter[] = [];
+  const adopt = (pet: Pet, kind: Critter["kind"], carrier?: Carrier) => {
+    const critter: Critter = {
+      ...pet,
+      kind,
+      carrier,
+      parent: carrier ? null : pet.group.parent,
+      home: {
+        position: pet.group.position.clone(),
+        quaternion: pet.group.quaternion.clone(),
+        scale: pet.group.scale.clone(),
+      },
+      motion: { mode: "home" },
+      at: new Vector3(),
+      velocity: new Vector3(),
+      boing: -10,
+      blob: carrier?.shadow ?? null,
+    };
+    pet.group.userData.critter = critter;
+    critters.push(critter);
+  };
+  for (const { model } of landmarks)
+    for (const pet of model.pets ?? []) adopt(pet, "land");
 
   // --- Animals on the three routes ------------------------------------------------
   const blobMaterial = new MeshBasicMaterial({
@@ -1845,11 +1971,21 @@ export function createIslandWorld(
       size: 0.6,
       pitch: true,
       last: 0,
+      delay: 0,
+      away: false,
       move(t, u) {
         bird.group.scale.setScalar(pop(u) * 1.45);
         bird.fly(t, Math.sin(t * 0.9 + offset * 7) > 0.55);
       },
+      hold(t) {
+        bird.fly(t * 1.6, false);
+      },
     });
+    adopt(
+      { id: "magpie", group: bird.group, hang: 0.2, reach: 0.3, settle: 0.2 },
+      "air",
+      carriers[carriers.length - 1],
+    );
   }
 
   // 寫: lion cubs carry code over the islands; the AI star makes it bigger.
@@ -1880,6 +2016,8 @@ export function createIslandWorld(
       size: 0.55,
       pitch: false,
       last: 0,
+      delay: 0,
+      away: false,
       move(t, u, previous) {
         cub.group.scale.setScalar(pop(u) * 1.2);
         cub.walk(t, true);
@@ -1887,7 +2025,16 @@ export function createIslandWorld(
         const grown = smooth(clamp((u - starAt) / 0.04, 0, 1));
         if (sign) sign.scale.setScalar(0.32 * (1 + grown * 0.6));
       },
+      // Held up, it keeps walking on air.
+      hold(t) {
+        cub.walk(t * 1.7, true);
+      },
     });
+    adopt(
+      { id: "cub", group: cub.group, hang: 0.55, reach: 0.55, settle: 0.55 },
+      "land",
+      carriers[carriers.length - 1],
+    );
   }
 
   // 創: sea turtles bring the finished work home to the visitor's island.
@@ -1939,6 +2086,8 @@ export function createIslandWorld(
       size: 0.7,
       pitch: false,
       last: 0,
+      delay: 0,
+      away: false,
       move(t, u) {
         swimmer.group.scale.setScalar(pop(u) * 1.35);
         swimmer.swim(t);
@@ -1947,7 +2096,15 @@ export function createIslandWorld(
           ripple(swimmer.group.position, t, 0.9);
         }
       },
+      hold(t) {
+        swimmer.swim(t * 2.4);
+      },
     });
+    adopt(
+      { id: "turtle", group: swimmer.group, hang: 0.3, reach: 0.3, settle: 0.3 },
+      "sea",
+      carriers[carriers.length - 1],
+    );
   }
 
   // Pink dolphins leap out of the open sea now and then, two at a time.
@@ -1970,8 +2127,10 @@ export function createIslandWorld(
   for (const model of pod) outlined(model.group);
   for (const { model } of landmarks)
     model.group.traverse((object) => {
-      if (object.userData.live && object.parent === model.group)
-        outlined(object);
+      if (!object.userData.live) return;
+      for (let up = object.parent; up && up !== model.group; up = up.parent)
+        if (up.userData.live) return;
+      outlined(object);
     });
   const splashes: { sprite: Sprite; born: number; velocity: Vector3 }[] = [];
   const splash = (at: Vector3, t: number) => {
@@ -2002,14 +2161,100 @@ export function createIslandWorld(
     }
     ripple(at, t, 1.4);
   };
-  const leapSites = [
-    [-12.5, 9.5, 0.6],
-    [12.5, 10, -0.5],
-    [-13, -3, 1.2],
-    [12.8, -4, -1.4],
-    [3, 14, 0.2],
-  ] as const;
-  let leap = { start: 4, site: 0 };
+  // Out at sea, and every other time in a channel between the letters,
+  // where they show from above too: [x, z, heading].
+  const leapSites = {
+    open: [
+      [-12.5, 9.5, 0.6],
+      [12.5, 10, -0.5],
+      [-13, -3, 1.2],
+      [3, 13.6, 0.2],
+      [12.8, -4, -1.4],
+    ],
+    channel: [
+      [-3.9, -3.2, 1.7],
+      [4.1, -3.6, 1.45],
+    ],
+  } as const;
+  let leap: {
+    start: number;
+    site: readonly [number, number, number];
+    near: boolean;
+  } = { start: 4, site: leapSites.open[0], near: false };
+
+  // Rain for a few seconds under a cloud: the AWS tower's (near, fine
+  // drops) or one on the horizon (far, so bigger).
+  const showers = [0.18, 1.7].map((size) => {
+    const count = 64;
+    const geometry = new BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(new Float32Array(count * 3), 3),
+    );
+    const points = new Points(
+      geometry,
+      new PointsMaterial({
+        map: art.drop.texture,
+        color: mix(c.sky, c.blue, size > 1 ? 0.6 : 0.35),
+        size,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.9,
+      }),
+    );
+    points.frustumCulled = false;
+    points.visible = false;
+    scene.add(points);
+    const drops = Array.from({ length: count }, (_, k) => ({
+      a: k * 2.399,
+      r: Math.sqrt((k + 0.5) / count),
+      phase: (k * 0.618) % 1,
+    }));
+    return {
+      points,
+      drops,
+      from: new Vector3(),
+      floor: 0,
+      reach: 0,
+      start: -10,
+    };
+  });
+  const shower = (from: Vector3, t: number, far: boolean) => {
+    const rain = showers[far ? 1 : 0];
+    rain.from.copy(from);
+    rain.reach = far ? 2 : 0.45;
+    rain.floor = far ? 0 : Math.max(groundAt(from.x, from.z), 0.02);
+    rain.start = t;
+  };
+
+  // Fireworks over the islands, for the party.
+  const sparks: { sprite: Sprite; born: number; velocity: Vector3 }[] = [];
+  const burst = (at: Vector3, color: Color, t: number) => {
+    for (let k = 0; k < 22; k++) {
+      let spark = sparks.find((item) => t - item.born > 1.4);
+      if (!spark) {
+        if (sparks.length > 160) break;
+        const sprite = new Sprite(
+          new SpriteMaterial({
+            map: art.spark.texture,
+            transparent: true,
+            depthWrite: false,
+          }),
+        );
+        scene.add(sprite);
+        spark = { sprite, born: t, velocity: new Vector3() };
+        sparks.push(spark);
+      }
+      const a = (k / 22) * Math.PI * 2;
+      const lift = ((k % 4) - 1.5) * 0.5;
+      spark.born = t;
+      spark.sprite.material.color.copy(color);
+      spark.sprite.position.copy(at);
+      spark.velocity.set(Math.cos(a) * 3.6, 1.4 + lift * 2.4, Math.sin(a) * 3.6);
+    }
+  };
+  let partyAt = -10;
+  let bursts = Infinity;
 
   // Gulls round the tower are part of it; fireflies and sparkles are not.
   const glowCloud = (count: number, map: Texture, size: number) => {
@@ -2181,7 +2426,11 @@ export function createIslandWorld(
     const reach = Math.max(0.95, item.model.height * 0.72);
     const wide = width / height > 1.15;
     return {
-      target: item.at.clone().setY(TOP + item.model.height * 0.42),
+      // On a tall phone stage the HUD fills the top and the lion's bubble
+      // the bottom, so the landmark sits a little higher.
+      target: item.at
+        .clone()
+        .setY(TOP + item.model.height * 0.42 - (wide ? 0 : 0.3)),
       yaw: island === "l" ? -0.45 : wide ? 0.42 : 0.2,
       pitch: 0.36,
       distance: (reach / Math.sin((FOV * Math.PI) / 360)) * (wide ? 1.15 : 1.5),
@@ -2297,18 +2546,68 @@ export function createIslandWorld(
     blobMaterial.opacity = 0.32 - p.glow * 0.12;
   };
 
+  // --- Play: poke, drag the view, pick animals up ---------------------------------
+  // A click on an island flies there; on a landmark of the focused island it
+  // flies up close and pokes it; animals, a jumping dolphin and the clouds on
+  // the horizon answer a click too. Dragging the sea or an island turns the
+  // view (sideways only on touch, so the page still scrolls); pressing on an
+  // animal and dragging, or holding it a moment, picks it up.
   const raycaster = new Raycaster();
-  const pick = (clientX: number, clientY: number) => {
+  const ndc = new Vector2();
+  const aimAt = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
-    raycaster.setFromCamera(
-      new Vector2(
-        ((clientX - rect.left) / rect.width) * 2 - 1,
-        -((clientY - rect.top) / rect.height) * 2 + 1,
-      ),
-      camera,
+    ndc.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
     );
-    const hit = raycaster.intersectObjects(pickables, false)[0];
-    return (hit?.object.userData.island as IslandId | undefined) ?? null;
+    raycaster.setFromCamera(ndc, camera);
+  };
+  type Hit =
+    | { kind: "critter"; critter: Critter }
+    | { kind: "dolphin"; model: Model }
+    | { kind: "landmark"; index: number }
+    | { kind: "cloud"; index: number }
+    | { kind: "island"; id: IslandId };
+  const shown = (root: Object3D, out: Object3D[] = []) => {
+    if (!root.visible) return out;
+    if (root instanceof Mesh) out.push(root);
+    for (const child of root.children) shown(child, out);
+    return out;
+  };
+  const ownerOf = (object: Object3D | undefined) => {
+    for (let node = object ?? null; node; node = node.parent)
+      if (node.userData.critter) return node.userData.critter as Critter;
+    return null;
+  };
+  const cloudMeshes = clouds.map(({ cloud }, index) => {
+    cloud.userData.cloud = index;
+    return cloud;
+  });
+  // Animals first (they are small and stand in front of their landmarks),
+  // then a jumping dolphin, then the nearest landmark, cloud or island.
+  const hitTest = (clientX: number, clientY: number): Hit | null => {
+    aimAt(clientX, clientY);
+    const animals: Object3D[] = [];
+    for (const critter of critters)
+      if (critter.motion.mode !== "hop") shown(critter.group, animals);
+    const animal = ownerOf(raycaster.intersectObjects(animals, false)[0]?.object);
+    if (animal) return { kind: "critter", critter: animal };
+    for (const model of pod)
+      if (
+        model.group.visible &&
+        raycaster.intersectObjects(shown(model.group), false).length
+      )
+        return { kind: "dolphin", model };
+    const hit = raycaster.intersectObjects(
+      [...proxies, ...cloudMeshes, ...pickables],
+      false,
+    )[0]?.object;
+    if (!hit) return null;
+    if (hit.userData.landmark !== undefined)
+      return { kind: "landmark", index: hit.userData.landmark as number };
+    if (hit.userData.cloud !== undefined)
+      return { kind: "cloud", index: hit.userData.cloud as number };
+    return { kind: "island", id: hit.userData.island as IslandId };
   };
   const setHover = (id: IslandId | null) => {
     if (id === hovered) return;
@@ -2323,45 +2622,502 @@ export function createIslandWorld(
         line.uniforms.uThickness.value =
           key === id ? 3.6 : line === materials[0] ? 2 : 1.8;
       }
-    canvas.style.cursor = id ? "pointer" : "";
     if (id) stage.dataset.hover = id;
     else delete stage.dataset.hover;
     wake();
   };
+  let cursor = "";
+  const point = (style: string) => {
+    if (style === cursor) return;
+    cursor = style;
+    canvas.style.cursor = style;
+  };
+  const canPlay = () => revealed || still;
+  const hover = (clientX: number, clientY: number) => {
+    const hit = canPlay() ? hitTest(clientX, clientY) : null;
+    const island =
+      hit?.kind === "island"
+        ? hit.id
+        : hit?.kind === "landmark"
+          ? landmarks[hit.index].island
+          : null;
+    setHover(island === focused ? null : island);
+    point(
+      hit?.kind === "critter"
+        ? "grab"
+        : hit && (hit.kind !== "island" || hit.id !== focused)
+          ? "pointer"
+          : canPlay()
+            ? "grab"
+            : "",
+    );
+  };
 
-  let downAt: { x: number; y: number; time: number } | null = null;
-  const onPointerMove = (event: PointerEvent) => {
-    const rect = canvas.getBoundingClientRect();
-    pointer.tx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.ty = ((event.clientY - rect.top) / rect.height) * 2 - 1;
-    if (event.pointerType === "mouse")
-      setHover(pick(event.clientX, event.clientY));
+  // Poking. The world counts the pokes (pokes in a row set off the big
+  // reactions); under reduced motion nothing moves, but the words and the
+  // eggs still come.
+  const landmarkId = (item: Placed) =>
+    `${item.island}${landmarks.filter((entry) => entry.island === item.island).indexOf(item)}` as PlayId;
+  const pokes = new Map<string, number[]>();
+  const inARow = (key: string, t: number, need: number, within: number) => {
+    const times = pokes.get(key) ?? [];
+    times.push(t);
+    while (t - times[0] > within) times.shift();
+    pokes.set(key, times);
+    if (times.length < need) return false;
+    times.length = 0;
+    return true;
+  };
+  const specials: Partial<
+    Record<PlayId, { egg: EggId; need: number; within: number }>
+  > = {
+    l3: { egg: "tower-fall", need: 3, within: 5 },
+    a0: { egg: "star-dizzy", need: 5, within: 4 },
+  };
+  const pokeLandmark = (item: Placed, t: number) => {
+    const id = landmarkId(item);
+    const special = specials[id];
+    const big = special ? inARow(id, t, special.need, special.within) : false;
+    if (!still) item.model.poke?.(t, big);
+    if (item.model.rain)
+      shower(item.model.rain.getWorldPosition(new Vector3()), t, false);
+    events.play(id, "poke", big && special ? [special.egg] : undefined);
     wake();
+  };
+  const pokeCritter = (critter: Critter, t: number) => {
+    if (critter.motion.mode !== "home") return;
+    if (!still) critter.boing = t;
+    // Four pets in a row is one too many for the cat.
+    const mad = critter.id === "cat" && inARow("cat", t, 4, 6);
+    if (!still) critter.poke?.(t, mad);
+    const eggs: EggId[] =
+      critter.id !== "cat" || mad
+        ? []
+        : now.glow > 0.5
+          ? ["cat-night", "cat-pet"]
+          : ["cat-pet"];
+    events.play(critter.id, mad ? "mad" : "poke", eggs);
+    wake();
+  };
+  const click = (clientX: number, clientY: number) => {
+    const t = clock();
+    const hit = hitTest(clientX, clientY);
+    if (canPlay() && hit) {
+      if (hit.kind === "critter") return pokeCritter(hit.critter, t);
+      if (!still && t - flight.start < FLIGHT * 0.85) return;
+      if (hit.kind === "dolphin") {
+        hit.model.group.userData.flip = t;
+        events.play("dolphin", "poke", ["dolphin"]);
+        return;
+      }
+      if (hit.kind === "cloud") {
+        const { cloud } = clouds[hit.index];
+        cloud.userData.bounce = t;
+        shower(cloud.position.clone().setY(cloud.position.y - 0.8), t, true);
+        events.play("cloud", "poke", ["cloud-rain"]);
+        wake();
+        return;
+      }
+      if (hit.kind === "landmark" && landmarks[hit.index].island === focused) {
+        const item = landmarks[hit.index];
+        const index = landmarks
+          .filter((entry) => entry.island === focused)
+          .indexOf(item);
+        if (index !== looked) events.look(index);
+        pokeLandmark(item, t);
+        return;
+      }
+    }
+    const id =
+      hit?.kind === "island"
+        ? hit.id
+        : hit?.kind === "landmark"
+          ? landmarks[hit.index].island
+          : null;
+    if (id || focused) events.pick(id);
+  };
+
+  // Dragging the view: offsets from the framed pose, and how fast it spins
+  // on after a flick.
+  const orbit = { yaw: 0, pitch: 0, spin: 0, turned: false, back: false };
+  const turn = (dx: number, dy: number, ms: number, touch: boolean) => {
+    const yaw = (-dx / width) * 3.4;
+    orbit.yaw += yaw;
+    if (!touch)
+      orbit.pitch = clamp(
+        orbit.pitch + (dy / height) * 1.8,
+        0.1 - current.pitch,
+        1.48 - current.pitch,
+      );
+    orbit.spin = orbit.spin * 0.4 + (ms > 0 ? yaw / (ms / 1000) : 0) * 0.6;
+  };
+  // Every flight starts from the view as the visitor left it.
+  const takeOff = () => {
+    flight = {
+      from: {
+        ...current,
+        yaw: current.yaw + orbit.yaw,
+        pitch: clamp(current.pitch + orbit.pitch, 0.08, 1.5),
+      },
+      start: clock(),
+    };
+    orbit.yaw = 0;
+    orbit.pitch = 0;
+    orbit.spin = 0;
+  };
+
+  // Picking animals up: the held one hangs from a hand that follows the
+  // pointer over the islands, swings as it moves and faces the camera; let
+  // go, it falls (bouncing on land, splashing in the sea), sits a moment and
+  // hops home: back to its landmark, or onto its route where it left off.
+  const presses = new Map<Placed, number>();
+  let held: Critter | null = null;
+  const hanger = new Group();
+  hanger.rotation.order = "YXZ";
+  scene.add(hanger);
+  const hand = new Vector3();
+  const handPlane = new Plane(new Vector3(0, 1, 0), 0);
+  const handHit = new Vector3();
+  const aimHand = (clientX: number, clientY: number) => {
+    if (!held) return;
+    aimAt(clientX, clientY);
+    const y = Math.min(TOP + held.reach + 0.35, camera.position.y - 0.6);
+    handPlane.constant = -y;
+    const at = raycaster.ray.intersectPlane(handPlane, handHit);
+    if (!at || at.distanceTo(camera.position) > 40) return;
+    hand.set(clamp(at.x, -15, 15), y, clamp(at.z, -13, 14));
+  };
+  const floorAt = (x: number, z: number) => {
+    const ground = groundAt(x, z);
+    if (ground <= 0) return 0;
+    const [cx, cy] = youIsland.center;
+    const id =
+      Math.hypot(x / S + ORIGIN[0] - cx, z / S + ORIGIN[1] - cy) <
+      youIsland.radius + 2
+        ? "you"
+        : nearestIsland(new Vector3(x, 0, z));
+    return ground + (islandRoots.get(id)?.position.y ?? 0);
+  };
+  const homeOf = (critter: Critter, out: Vector3) => {
+    const { carrier } = critter;
+    if (carrier) {
+      const u = still
+        ? (carrier.offset + 0.3) % 1
+        : ((((clock() - carrier.delay) / carrier.period + carrier.offset) %
+            1) +
+            1) %
+          1;
+      return out.copy(carrier.curve.getPointAt(u));
+    }
+    return critter.parent
+      ? critter.parent.localToWorld(out.copy(critter.home.position))
+      : out.copy(critter.at);
+  };
+  const hopHome = (critter: Critter, t: number): Motion => {
+    const from = critter.group.position.clone();
+    const span = from.distanceTo(homeOf(critter, new Vector3()));
+    return {
+      mode: "hop",
+      from,
+      start: t,
+      duration: clamp(0.45 + span * 0.07, 0.5, 1.4),
+    };
+  };
+  const arrive = (critter: Critter, t: number) => {
+    critter.motion = { mode: "home" };
+    critter.boing = t;
+    if (critter.carrier) critter.carrier.away = false;
+    else if (critter.parent) {
+      critter.parent.attach(critter.group);
+      critter.group.position.copy(critter.home.position);
+      critter.group.quaternion.copy(critter.home.quaternion);
+      critter.group.scale.copy(critter.home.scale);
+    }
+    shadowsDirty = true;
+  };
+  const grab = (critter: Critter, clientX: number, clientY: number) => {
+    const t = clock();
+    if (press) press.mode = "hold";
+    held = critter;
+    critter.motion = { mode: "held", since: t };
+    if (critter.carrier) critter.carrier.away = true;
+    critter.group.getWorldPosition(critter.at);
+    // Hung so that it starts off where it stood.
+    hanger.position.copy(critter.at);
+    hanger.position.y += critter.reach;
+    hanger.rotation.set(
+      0,
+      Math.atan2(
+        camera.position.x - critter.at.x,
+        camera.position.z - critter.at.z,
+      ),
+      0,
+    );
+    hanger.updateMatrixWorld();
+    hanger.attach(critter.group);
+    critter.group.position.set(0, -critter.hang, 0);
+    critter.group.quaternion.identity();
+    critter.lift?.(true, still ? 0 : t);
+    critter.velocity.set(0, 0, 0);
+    hand.copy(hanger.position);
+    aimHand(clientX, clientY);
+    point("grabbing");
+    events.play(
+      critter.id,
+      "lift",
+      critter.id === "cat"
+        ? ["cat-liquid"]
+        : critter.id === "cub"
+          ? ["cub-air"]
+          : undefined,
+    );
+    wake();
+  };
+  const landed = (critter: Critter, t: number, wet: boolean) => {
+    if (wet && !still) splash(critter.group.position, t);
+    if (critter.id === "cat")
+      events.play("cat", wet ? "wet" : "land", wet ? ["cat-water"] : undefined);
+    else if (critter.id === "turtle" && !wet)
+      events.play("turtle", "land", ["turtle-land"]);
+    critter.motion =
+      critter.kind === "sea" && wet
+        ? hopHome(critter, t)
+        : {
+            mode: "rest",
+            until: t + (critter.kind === "sea" ? 1.6 : 0.9),
+            wet,
+          };
+    if (still) arrive(critter, t);
+  };
+  const letGo = () => {
+    const critter = held;
+    if (!critter) return;
+    const t = clock();
+    held = null;
+    scene.attach(critter.group);
+    critter.group.position.copy(hanger.position);
+    critter.group.position.y -= critter.settle;
+    critter.group.rotation.set(0, hanger.rotation.y, 0);
+    critter.lift?.(false, still ? 0 : t);
+    critter.velocity.clampLength(0, 6);
+    hanger.rotation.set(0, 0, 0);
+    if (still) {
+      const floor = floorAt(critter.group.position.x, critter.group.position.z);
+      critter.group.position.y = floor;
+      landed(critter, t, floor <= 0);
+    } else
+      critter.motion =
+        critter.kind === "air"
+          ? hopHome(critter, t)
+          : { mode: "fall", wet: false };
+    wake();
+  };
+  const jump = (s: number) =>
+    s >= 0 && s < 0.45 ? Math.sin((s / 0.45) * Math.PI) * 0.22 : 0;
+  const before = new Vector3();
+  const homeAt = new Vector3();
+  const tend = (t: number, dt: number) => {
+    for (const critter of critters) {
+      const { motion, group } = critter;
+      if (motion.mode === "home") {
+        const hop = jump(t - critter.boing);
+        if (critter.carrier) group.position.y += hop;
+        else group.position.y = critter.home.position.y + hop;
+        continue;
+      }
+      if (critter.carrier) critter.carrier.delay += dt;
+      if (!critter.blob) shadowsDirty = true;
+      if (motion.mode === "held") {
+        before.copy(hanger.position);
+        hanger.position.lerp(hand, still ? 1 : 1 - Math.exp(-dt * 16));
+        if (dt > 0)
+          critter.velocity.lerp(
+            homeAt.subVectors(hanger.position, before).divideScalar(dt),
+            0.5,
+          );
+        const face = Math.atan2(
+          camera.position.x - hanger.position.x,
+          camera.position.z - hanger.position.z,
+        );
+        const ahead =
+          critter.velocity.x * Math.sin(face) +
+          critter.velocity.z * Math.cos(face);
+        const aside =
+          critter.velocity.x * Math.cos(face) -
+          critter.velocity.z * Math.sin(face);
+        const ease = still ? 1 : 1 - Math.exp(-dt * 7);
+        hanger.rotation.y = face;
+        hanger.rotation.x +=
+          (clamp(ahead * 0.09, -0.7, 0.7) - hanger.rotation.x) * ease;
+        hanger.rotation.z +=
+          (clamp(-aside * 0.09, -0.7, 0.7) +
+            (still ? 0 : Math.sin(t * 11) * 0.06) -
+            hanger.rotation.z) *
+          ease;
+        critter.carrier?.hold(t);
+      } else if (motion.mode === "fall") {
+        critter.velocity.y -= 16 * dt;
+        group.position.addScaledVector(critter.velocity, dt);
+        const floor = floorAt(group.position.x, group.position.z);
+        if (group.position.y <= floor) {
+          group.position.y = floor;
+          const wet = floor <= 0;
+          if (!wet && critter.velocity.y < -3.2)
+            critter.velocity.set(
+              critter.velocity.x * 0.5,
+              -critter.velocity.y * 0.3,
+              critter.velocity.z * 0.5,
+            );
+          else landed(critter, t, wet);
+        }
+      } else if (motion.mode === "rest") {
+        if (motion.wet) group.position.y = -0.05 + Math.sin(t * 7) * 0.025;
+        if (t >= motion.until) critter.motion = hopHome(critter, t);
+      } else {
+        const k = clamp((t - motion.start) / motion.duration, 0, 1);
+        homeOf(critter, homeAt);
+        const rise = 0.5 + motion.from.distanceTo(homeAt) * 0.12;
+        group.position.lerpVectors(motion.from, homeAt, k);
+        group.position.y += Math.sin(k * Math.PI) * rise;
+        group.rotation.y = Math.atan2(
+          homeAt.x - motion.from.x,
+          homeAt.z - motion.from.z,
+        );
+        if (k === 1) arrive(critter, t);
+      }
+      if (critter.blob && critter.motion.mode !== "home") {
+        group.getWorldPosition(before);
+        const floor = floorAt(before.x, before.z);
+        critter.blob.position.set(before.x, floor + 0.015, before.z);
+        critter.blob.scale.setScalar(
+          (critter.carrier?.size ?? 0.5) /
+            (1 + Math.max(0, before.y - floor) * 0.6),
+        );
+        critter.blob.visible = true;
+      }
+    }
+  };
+
+  type Press = {
+    pointer: number;
+    x: number;
+    y: number;
+    time: number;
+    lastX: number;
+    lastY: number;
+    lastTime: number;
+    critter: Critter | null;
+    mode: "press" | "turn" | "hold";
+    touch: boolean;
+  };
+  let press: Press | null = null;
+  const onPointerDown = (event: PointerEvent) => {
+    if ((event.pointerType === "mouse" && event.button !== 0) || press) return;
+    const hit = canPlay() ? hitTest(event.clientX, event.clientY) : null;
+    const stamp = performance.now();
+    press = {
+      pointer: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      time: stamp,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastTime: stamp,
+      critter:
+        hit?.kind === "critter" && hit.critter.motion.mode === "home"
+          ? hit.critter
+          : null,
+      mode: "press",
+      touch: event.pointerType !== "mouse",
+    };
+    pointer.tx = 0;
+    pointer.ty = 0;
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // The pointer is already gone; the press ends with it.
+    }
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    if (press && event.pointerId === press.pointer) {
+      const stamp = performance.now();
+      if (
+        press.mode === "press" &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) > 6
+      ) {
+        if (press.critter) grab(press.critter, event.clientX, event.clientY);
+        else if (canPlay()) {
+          press.mode = "turn";
+          setHover(null);
+          point("grabbing");
+        }
+      }
+      if (press.mode === "turn")
+        turn(
+          event.clientX - press.lastX,
+          event.clientY - press.lastY,
+          stamp - press.lastTime,
+          press.touch,
+        );
+      else if (press.mode === "hold") aimHand(event.clientX, event.clientY);
+      press.lastX = event.clientX;
+      press.lastY = event.clientY;
+      press.lastTime = stamp;
+    } else if (!press) {
+      const rect = canvas.getBoundingClientRect();
+      pointer.tx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.ty = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+      if (event.pointerType === "mouse") hover(event.clientX, event.clientY);
+    }
+    wake();
+  };
+  const onPointerUp = (event: PointerEvent) => {
+    if (!press || event.pointerId !== press.pointer) return;
+    const done = press;
+    press = null;
+    try {
+      canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // Released already.
+    }
+    const stamp = performance.now();
+    if (done.mode === "hold") letGo();
+    else if (done.mode === "turn") {
+      if (still || stamp - done.lastTime > 80) orbit.spin = 0;
+    } else if (stamp - done.time < 700) click(event.clientX, event.clientY);
+    point("");
+    if (event.pointerType === "mouse") hover(event.clientX, event.clientY);
+    wake();
+  };
+  // The browser took the gesture over (a scroll, say).
+  const onPointerCancel = (event: PointerEvent) => {
+    if (!press || event.pointerId !== press.pointer) return;
+    const done = press;
+    press = null;
+    if (done.mode === "hold") letGo();
+    orbit.spin = 0;
+    point("");
   };
   const onPointerLeave = () => {
     pointer.tx = 0;
     pointer.ty = 0;
+    if (press) return;
     setHover(null);
+    point("");
   };
-  const onPointerDown = (event: PointerEvent) => {
-    downAt = { x: event.clientX, y: event.clientY, time: performance.now() };
-  };
-  const onPointerUp = (event: PointerEvent) => {
-    if (!downAt) return;
-    const moved = Math.hypot(
-      event.clientX - downAt.x,
-      event.clientY - downAt.y,
-    );
-    const quick = performance.now() - downAt.time < 600;
-    downAt = null;
-    if (moved > 8 || !quick) return;
-    const id = pick(event.clientX, event.clientY);
-    if (id || focused) events.pick(id);
+  // A finger that lands on an animal is picking it up, not scrolling.
+  const onTouchStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1 || !canPlay()) return;
+    const touch = event.touches[0];
+    if (hitTest(touch.clientX, touch.clientY)?.kind === "critter")
+      event.preventDefault();
   };
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
+  canvas.addEventListener("touchstart", onTouchStart, { passive: false });
 
   const onLost = (event: Event) => {
     event.preventDefault();
@@ -2381,9 +3137,12 @@ export function createIslandWorld(
   const sway = new Quaternion();
   const size = new Vector3();
   const place3 = new Vector3();
+  let lastFrame = 0;
 
   function draw() {
     const t = clock();
+    const dt = clamp(t - lastFrame, 0, 0.05);
+    lastFrame = t;
     // Islands rise out of the sea one after another the first time.
     let moving = false;
     islandIds.forEach((id, k) => {
@@ -2415,24 +3174,62 @@ export function createIslandWorld(
       : revealPose(t);
     const k = still ? 1 : clamp((t - flight.start) / FLIGHT, 0, 1);
     current = k < 1 ? lerpPose(flight.from, base, easeInOut(k)) : base;
+    // A flicked view spins on and slows down.
+    if (press?.mode !== "turn" && orbit.spin) {
+      orbit.yaw += orbit.spin * dt;
+      orbit.spin *= Math.exp(-dt * 3.2);
+      if (Math.abs(orbit.spin) < 0.01) orbit.spin = 0;
+    }
     place({
       ...current,
-      yaw: current.yaw + (still ? 0 : pointer.x * 0.045),
-      pitch: current.pitch + (still ? 0 : -pointer.y * 0.03),
+      yaw: current.yaw + orbit.yaw + (still ? 0 : pointer.x * 0.045),
+      pitch: clamp(
+        current.pitch + orbit.pitch + (still ? 0 : -pointer.y * 0.03),
+        0.08,
+        1.5,
+      ),
     });
+    const turned =
+      Math.abs(Math.atan2(Math.sin(orbit.yaw), Math.cos(orbit.yaw))) > 0.35 ||
+      Math.abs(orbit.pitch) > 0.2;
+    if (turned !== orbit.turned) {
+      orbit.turned = turned;
+      events.turned(turned);
+    }
+    // Turned right round, the name reads backwards.
+    if (!focused && revealed) {
+      const yaw = current.yaw + orbit.yaw;
+      const facing = Math.abs(Math.atan2(Math.sin(yaw), Math.cos(yaw)));
+      if (facing > 2.5 && !orbit.back) {
+        orbit.back = true;
+        events.play("view", "poke", ["back-view"]);
+      } else if (facing < 1.6) orbit.back = false;
+    }
+    // Holding an animal a moment picks it up.
+    if (
+      press?.mode === "press" &&
+      press.critter &&
+      performance.now() - press.time > 380
+    )
+      grab(press.critter, press.lastX, press.lastY);
     sky.position.copy(camera.position);
     stage.style.setProperty("--isl-rise", rise.toFixed(3));
     if (!revealed && rise > 0.97) {
       revealed = true;
-      star?.kick(t);
+      if (!still) star?.kick(t);
       events.reveal();
     }
     const time = still ? 0 : t;
     seaMaterial.uniforms.uTime.value = time;
     skyMaterial.uniforms.uTime.value = time;
     for (const { model } of landmarks) model.tick?.(time, camera.position);
-    for (const { cloud, x, phase } of clouds)
+    for (const { cloud, x, phase } of clouds) {
       cloud.position.x = x + Math.sin(time * 0.05 + phase) * 1.6;
+      const bounce = t - (cloud.userData.bounce ?? -10);
+      cloud.scale.setScalar(
+        1 + (bounce < 0.6 ? Math.sin((bounce / 0.6) * Math.PI) * 0.15 : 0),
+      );
+    }
     // Plants follow their island and lean a little in the breeze.
     for (const { meshes, list, sway: leans } of plantSets) {
       list.forEach((plant, k) => {
@@ -2465,9 +3262,12 @@ export function createIslandWorld(
     }
     const ready = still ? 1 : smooth(clamp((t - introStart - 1.6) / 0.6, 0, 1));
     for (const carrier of carriers) {
+      // In a visitor's hand, or on its way back to the route.
+      if (carrier.away) continue;
       const u = still
         ? (carrier.offset + 0.3) % 1
-        : (t / carrier.period + carrier.offset) % 1;
+        : ((((t - carrier.delay) / carrier.period + carrier.offset) % 1) + 1) %
+          1;
       const point = carrier.curve.getPointAt(u);
       const ahead = carrier.curve.getPointAt(Math.min(u + 0.01, 1));
       carrier.group.position.copy(point);
@@ -2489,10 +3289,11 @@ export function createIslandWorld(
       );
       carrier.shadow.visible = pop(u) * ready > 0.05;
     }
+    tend(t, dt);
     // Dolphins.
     if (!still) {
       const local = t - leap.start;
-      const [sx, sz, heading] = leapSites[leap.site];
+      const [sx, sz, heading] = leap.site;
       pod.forEach((model, k) => {
         const u = (local - k * 0.28) / 1.5;
         model.group.visible = u > 0 && u < 1;
@@ -2510,6 +3311,9 @@ export function createIslandWorld(
         const ny = -0.35 + 4 * 1.25 * (u + du) * (1 - u - du);
         model.group.position.set(x, y, z);
         model.group.lookAt(nx, ny, nz);
+        // Clicked mid-air: a barrel roll.
+        const roll = t - (model.group.userData.flip ?? -10);
+        if (roll < 0.7) model.group.rotateZ(smooth(roll / 0.7) * Math.PI * 2);
         if (model.group.userData.out === undefined && u > 0.04) {
           model.group.userData.out = true;
           splash(model.group.position, t);
@@ -2520,10 +3324,12 @@ export function createIslandWorld(
         }
       });
       if (local > 2.2) {
+        const near = !leap.near;
+        const sites = near ? leapSites.channel : leapSites.open;
         leap = {
           start: t + 5 + Math.random() * 5,
-          site:
-            (leap.site + 1 + Math.floor(Math.random() * 3)) % leapSites.length,
+          site: sites[Math.floor(Math.random() * sites.length)],
+          near,
         };
         for (const model of pod) {
           delete model.group.userData.out;
@@ -2539,6 +3345,47 @@ export function createIslandWorld(
         drop.sprite.scale.setScalar(0.18 * (1 - age));
         drop.sprite.material.opacity = 1 - age / 0.9;
       }
+    }
+    for (const rain of showers) {
+      const age = t - rain.start;
+      rain.points.visible = age < 3.4 && !still;
+      if (!rain.points.visible) continue;
+      const where = rain.points.geometry.getAttribute("position");
+      const fall = Math.max(0.5, rain.from.y - rain.floor);
+      rain.drops.forEach((drop, k) => {
+        const life = (age * (7 / fall) + drop.phase) % 1;
+        const r = drop.r * rain.reach;
+        where.setXYZ(
+          k,
+          rain.from.x + Math.cos(drop.a) * r,
+          rain.from.y - life * fall,
+          rain.from.z + Math.sin(drop.a) * r,
+        );
+      });
+      where.needsUpdate = true;
+      (rain.points.material as PointsMaterial).opacity =
+        0.9 * Math.min(1, age * 4, (3.4 - age) * 2);
+    }
+    // The party: fireworks over each island in turn.
+    const show = [0.15, 0.6, 1.05, 1.5, 2, 2.6, 3.2];
+    while (!still && bursts < show.length && t - partyAt >= show[bursts]) {
+      const id = islandIds[bursts % islandIds.length];
+      const colors = [c.yellow, c.coral, c.green, c.amber];
+      burst(
+        centerOf(footprint(id)).setY(3.6 + (bursts % 3) * 0.7),
+        colors[bursts % colors.length],
+        t,
+      );
+      bursts += 1;
+    }
+    for (const spark of sparks) {
+      const age = t - spark.born;
+      spark.sprite.visible = age < 1.4 && !still;
+      if (!spark.sprite.visible) continue;
+      spark.velocity.y -= 2.6 * dt;
+      spark.sprite.position.addScaledVector(spark.velocity, dt);
+      spark.sprite.scale.setScalar(0.15 + 0.85 * (1 - age / 1.4));
+      spark.sprite.material.opacity = 1 - age / 1.4;
     }
     for (const item of ripples) {
       const age = t - item.born;
@@ -2654,6 +3501,43 @@ export function createIslandWorld(
   current = still ? overview : opening;
   flight = { from: current, start: -10 };
 
+  // Development only: where things are on the page, for scripted checks
+  // (an animal by id, "dolphin", "cloud", or a landmark like "i0").
+  if (import.meta.env.DEV)
+    Object.assign(window, {
+      __islands: {
+        find(name: string, nth = 0) {
+          const [kind, id] = [name.replace(/\d+$/, ""), name];
+          const target =
+            critters.filter((item) => item.id === id)[nth]?.group ??
+            (kind === "dolphin"
+              ? pod.find((model) => model.group.visible)?.group
+              : kind === "cloud"
+                ? clouds[nth]?.cloud
+                : proxies.find(
+                    (proxy) =>
+                      landmarkId(landmarks[proxy.userData.landmark]) === id,
+                  ));
+          if (!target) return null;
+          target.getWorldPosition(probe);
+          if (target.userData.landmark !== undefined)
+            probe.y += target.scale.y * 0.4;
+          else if (target.userData.critter) {
+            const box = new Box3();
+            for (const mesh of shown(target)) box.expandByObject(mesh);
+            box.getCenter(probe);
+          }
+          probe.project(camera);
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x: rect.left + (probe.x * 0.5 + 0.5) * rect.width,
+            y: rect.top + (-probe.y * 0.5 + 0.5) * rect.height,
+          };
+        },
+        draws: () => renderer.info.render.calls,
+      },
+    });
+
   return {
     run(on) {
       running = on;
@@ -2664,7 +3548,7 @@ export function createIslandWorld(
     focus(id) {
       if (id === focused) return;
       if (revealStart > clock()) revealStart = clock() - REVEAL;
-      flight = { from: current, start: clock() };
+      takeOff();
       focused = id;
       looked = null;
       bouncing = null;
@@ -2693,8 +3577,43 @@ export function createIslandWorld(
     },
     look(index) {
       if (index === looked) return;
-      flight = { from: current, start: clock() };
+      takeOff();
       looked = index;
+      wake();
+    },
+    poke() {
+      if (!focused || looked === null) return;
+      const item = landmarks.filter((entry) => entry.island === focused)[
+        looked
+      ];
+      if (!item) return;
+      // Where an animal lives at the landmark, every other press is for it.
+      const turn = (presses.get(item) ?? 0) + 1;
+      presses.set(item, turn);
+      const pet = critters.find(
+        (critter) =>
+          critter.motion.mode === "home" &&
+          item.model.pets?.some((one) => one.group === critter.group),
+      );
+      if (pet && turn % 2 === 0) pokeCritter(pet, clock());
+      else pokeLandmark(item, clock());
+    },
+    party() {
+      const t = clock();
+      partyAt = t;
+      bursts = 0;
+      for (const item of landmarks) {
+        if (!still) item.model.poke?.(t);
+        if (item.model.rain)
+          shower(item.model.rain.getWorldPosition(new Vector3()), t, false);
+      }
+      critters.forEach((critter, k) => {
+        critter.boing = t + k * 0.12;
+      });
+      wake();
+    },
+    straighten() {
+      takeOff();
       wake();
     },
     destroy() {
@@ -2705,6 +3624,8 @@ export function createIslandWorld(
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
+      canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("webglcontextlost", onLost);
       scene.traverse((object) => {
         const mesh = object as Mesh;

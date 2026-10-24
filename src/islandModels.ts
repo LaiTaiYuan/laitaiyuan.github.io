@@ -11,6 +11,7 @@ import {
   MeshBasicMaterial,
   MeshToonMaterial,
   PlaneGeometry,
+  Quaternion,
   Shape,
   SphereGeometry,
   Sprite,
@@ -27,6 +28,7 @@ import type {
   Texture,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import type { PlayId } from "./data/islandPlay";
 
 // The models of 「LAI 群島」: landmarks for each of Leonard's stories and the
 // animals that live on the islands (he asked for animals, not people). Built
@@ -83,6 +85,13 @@ export function tones(c: Tokens) {
     skin: mix(c.green, c.paper, 0.5),
     glass: mix(c.sky, c.white, 0.35),
     magpieBelly: mix(c.blue, c.white, 0.55),
+    ginger: mix(c.coral, c.yellow, 0.28),
+    gingerDark: mix(c.coral, c.ink, 0.22),
+    catWhite: mix(c.white, c.paper, 0.5),
+    catNose: mix(c.coral, c.white, 0.42),
+    catEye: mix(c.yellow, c.green, 0.4),
+    catEyeGlow: mix(c.yellowLight, c.green, 0.3),
+    cushion: mix(c.white, c.sky, 0.16),
   };
 }
 export type Tones = ReturnType<typeof tones>;
@@ -102,7 +111,10 @@ export type Kit = {
   // Unlit colour that fades from `day` to `night` (windows, screens).
   lamp(day: Color, night: Color): MeshBasicMaterial;
   halo(color: Color, size: number, day?: number, night?: number): Sprite;
-  icon(name: "bubble" | "code" | "note" | "spark", size: number): Sprite;
+  icon(
+    name: "bubble" | "code" | "note" | "spark" | "heart",
+    size: number,
+  ): Sprite;
   // A soft white puff, for smoke and steam.
   puff(size: number): Sprite;
   // A word painted on a sign; redrawn once the web font has loaded.
@@ -123,6 +135,28 @@ export type Model = {
   // Height of the top of the model, for the pin above it.
   height: number;
   tick?(t: number, view: Vector3): void;
+  // A click or tap on the landmark; `big` for the one that sets off its
+  // easter egg (the world counts the pokes).
+  poke?(t: number, big?: boolean): void;
+  // Animals here that the visitor can pick up.
+  pets?: Pet[];
+  // Rain falls from here when the landmark is poked.
+  rain?: Object3D;
+};
+
+// An animal the visitor can pick up and put down again. While it is held,
+// the world hangs `group` from the pointer, `hang` below it, its lowest
+// point `reach` below; once let go, it drops from `settle` below the
+// pointer and then finds its way home.
+export type Pet = {
+  id: PlayId;
+  group: Group;
+  hang: number;
+  reach: number;
+  settle: number;
+  lift?(held: boolean, t: number): void;
+  // A click or tap; `mad` when it was one poke too many.
+  poke?(t: number, mad?: boolean): void;
 };
 
 // --- Geometry helpers -------------------------------------------------------
@@ -168,6 +202,25 @@ const tube = (
     radius,
     7,
   );
+// Thin bands round a tube from tube(), like the rings on a tabby's tail.
+const rings = (
+  points: readonly (readonly [number, number, number])[],
+  radius: number,
+  at: readonly number[],
+) => {
+  const curve = new CatmullRomCurve3(
+    points.map(([x, y, z]) => new Vector3(x, y, z)),
+  );
+  const axis = new Vector3(0, 0, 1);
+  return at.map((u) => {
+    const p = curve.getPointAt(u);
+    return new TorusGeometry(radius, radius * 0.32, 5, 16)
+      .applyQuaternion(
+        new Quaternion().setFromUnitVectors(axis, curve.getTangentAt(u)),
+      )
+      .translate(p.x, p.y, p.z);
+  });
+};
 // A flat shape lying in the xz-plane, `depth` thick, from (x, z) points.
 const slab = (
   points: readonly (readonly [number, number])[],
@@ -236,6 +289,14 @@ const bubbleShape = (w: number, h: number) => {
 };
 
 const blink = (t: number, seed: number) => ((t + seed) % 3.9 < 0.13 ? 0.12 : 1);
+// A cat's slow blink, `s` seconds after it starts: the cat's way of saying
+// it trusts you.
+const slowBlink = (s: number) =>
+  s < 0.35
+    ? 1 - (s / 0.35) * 0.88
+    : s < 0.75
+      ? 0.12
+      : Math.min(1, 0.12 + ((s - 0.75) / 0.45) * 0.88);
 const spring = (x: number) =>
   x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.cos(x * Math.PI * 2.5) * Math.exp(-x * 6);
 
@@ -389,6 +450,7 @@ function lionHead(kit: Kit, options: { glasses?: boolean; phones?: boolean }) {
 
 // Leonard's lion at his desk: typing, nodding along to his headphones,
 // looking up at whoever is watching, and now and then struck by an idea.
+// The orange-and-white cat naps in its bed by the desk.
 export function lionDesk(kit: Kit): Model {
   const { c } = kit;
   const group = new Group();
@@ -513,6 +575,24 @@ export function lionDesk(kit: Kit): Model {
   for (const x of [-0.14, 0.14])
     for (const z of [-0.26, -0.02])
       put(group, kit.solid(disc(0.022, 0.31, 8), dark, null), x, 0.155, z);
+  // The cat's round bed by the front corner of the desk: a plump rim with
+  // pink piping round a pale cushion.
+  const bed = put(group, new Group(), 0.56, 0, 0.86);
+  const rim = new TorusGeometry(0.2, 0.062, 12, 32);
+  rim.rotateX(Math.PI / 2);
+  put(bed, kit.solid(rim, kit.paint(c.cream), 1.3), 0, 0.055, 0).scale.y = 0.8;
+  const piping = new TorusGeometry(0.2, 0.011, 6, 40);
+  piping.rotateX(Math.PI / 2);
+  put(bed, kit.solid(piping, kit.paint(c.catNose), null), 0, 0.103, 0);
+  put(
+    bed,
+    kit.solid(disc(0.19, 0.05, 28), kit.paint(c.cushion), 1),
+    0,
+    0.04,
+    0,
+  );
+  const cat = gingerCat(kit);
+  put(bed, cat.pet.group, 0, 0.065, 0).rotation.y = 0.15;
 
   // The lion.
   const body = put(group, new Group(), 0, 0.37, -0.14);
@@ -591,13 +671,22 @@ export function lionDesk(kit: Kit): Model {
     live(put(group, kit.icon("note", 0.22), 0, 0, 0)),
   );
   const here = new Vector3();
+  let poked = -10;
 
   return {
     group,
     height: 1.55,
+    pets: [cat.pet],
+    poke(t) {
+      poked = t;
+    },
     tick(t, view) {
       const cycle = t % 11;
-      const typing = cycle < 4.2 || cycle > 8.6;
+      // A poke makes him look up with a sudden idea.
+      const since = t - poked;
+      const startled =
+        since < 2.6 ? Math.min(1, since * 6, (2.6 - since) * 3) : 0;
+      const typing = (cycle < 4.2 || cycle > 8.6) && !startled;
       arms.forEach((pivot, k) => {
         pivot.rotation.x = typing
           ? -1.2 + Math.sin(t * 15 + k * Math.PI) * 0.12
@@ -609,10 +698,12 @@ export function lionDesk(kit: Kit): Model {
         -0.7,
         Math.min(0.7, Math.atan2(view.x - here.x, view.z - here.z)),
       );
-      const look =
+      const look = Math.max(
+        startled,
         cycle > 4.4 && cycle < 8.4
           ? Math.min(1, (cycle - 4.4) * 2, (8.4 - cycle) * 2)
-          : 0;
+          : 0,
+      );
       head.group.rotation.y = toward * look;
       head.group.rotation.x = typing
         ? 0.22 + Math.sin(t * 7.6) * 0.035
@@ -623,10 +714,12 @@ export function lionDesk(kit: Kit): Model {
       body.scale.y = 1 + Math.sin(t * 2.4) * 0.012;
       tail.rotation.y = Math.sin(t * 2.2) * 0.45;
       tail.rotation.z = Math.sin(t * 1.4) * 0.15;
-      const spark =
+      const spark = Math.max(
         cycle > 6 && cycle < 9
           ? spring((cycle - 6) / 0.8) * Math.min(1, (9 - cycle) * 3)
-          : 0;
+          : 0,
+        since < 2.6 ? spring(since / 0.7) * Math.min(1, (2.6 - since) * 3) : 0,
+      );
       idea.scale.setScalar(Math.max(0.001, spark));
       idea.position.y = 1.46 + Math.sin(t * 3) * 0.03;
       (ideaGlow.material as SpriteMaterial).rotation = t;
@@ -640,6 +733,297 @@ export function lionDesk(kit: Kit): Model {
         );
         (note.material as SpriteMaterial).opacity =
           Math.sin(life * Math.PI) * (typing ? 1 : 0.4);
+      });
+      cat.tick(t, view, spark);
+    },
+  };
+}
+
+// --- The orange-and-white cat -------------------------------------------------
+
+export type Cat = {
+  pet: Pet;
+  // `bulb`: how brightly the lion's idea is lit; the cat looks up at it.
+  tick(t: number, view: Vector3, bulb: number): void;
+};
+
+// The orange-and-white cat from a photo Leonard shared (2026-10-24): ginger
+// tabby back, white bib, paws and blaze, round amber-green eyes. It naps
+// curled up in its bed by the lion's desk with its head up, watching
+// whoever is looking. It looks up when the lion has an idea, slow-blinks and
+// purrs when petted, puts its ears back when petted once too often, its eyes
+// shine at night, and picked up, it hangs long: cats are liquid.
+export function gingerCat(kit: Kit): Cat {
+  const { c } = kit;
+  const group = live(new Group());
+  const ginger = kit.paint(c.ginger);
+  const white = kit.paint(c.catWhite);
+  const stripe = kit.paint(c.gingerDark);
+  const pink = kit.paint(c.catNose);
+
+  // Curled up: a round loaf with tabby stripes running down from the spine,
+  // the rump, a white bib, front paws tucked in and the tail wrapped round.
+  const curl = live(put(group, new Group(), 0, 0, 0));
+  const loaf = put(curl, new Group(), 0, 0.095, -0.01);
+  loaf.scale.set(1.2, 0.66, 1.02);
+  put(loaf, kit.solid(ball(0.15, 24, 16), ginger, 1.4), 0, 0, 0);
+  for (let k = 0; k < 8; k++) {
+    const arc = k % 2 ? 0.95 : 1.15;
+    const band = new TorusGeometry(0.151, 0.011, 5, 14, arc);
+    band.rotateZ(1.32 - arc);
+    band.rotateY(0.05 + k * 0.44);
+    put(loaf, kit.solid(band, stripe, null), 0, 0, 0);
+  }
+  put(curl, kit.solid(ball(0.085, 16, 12), ginger, 1.2), -0.115, 0.11, -0.075);
+  const bib = put(
+    curl,
+    kit.solid(ball(0.09, 16, 12), white, 1),
+    0.03,
+    0.115,
+    0.1,
+  );
+  bib.scale.set(1.05, 0.95, 0.62);
+  const paw = pill(0.026, 0.05);
+  paw.rotateX(Math.PI / 2);
+  for (const [x, z] of [
+    [-0.005, 0.17],
+    [0.07, 0.16],
+  ] as const)
+    put(curl, kit.solid(paw, white, 1), x, 0.03, z);
+  const wrap = [
+    [-0.16, 0.07, -0.1],
+    [-0.215, 0.055, 0.02],
+    [-0.185, 0.045, 0.135],
+    [-0.1, 0.04, 0.195],
+  ] as const;
+  put(curl, kit.solid(tube(wrap, 0.03), ginger, 1.2), 0, 0, 0);
+  for (const ring of rings(wrap, 0.031, [0.3, 0.62]))
+    put(curl, kit.solid(ring, stripe, null), 0, 0, 0);
+  put(curl, kit.solid(ball(0.03, 10, 8), ginger, null), -0.1, 0.04, 0.195);
+  const tip = live(put(curl, new Group(), -0.1, 0.04, 0.195));
+  const flick = [
+    [0, 0, 0],
+    [0.03, 0.006, 0.035],
+    [0.045, 0.016, 0.07],
+  ] as const;
+  put(tip, kit.solid(tube(flick, 0.028), ginger, 1.2), 0, 0, 0);
+  for (const ring of rings(flick, 0.029, [0.5]))
+    put(tip, kit.solid(ring, stripe, null), 0, 0, 0);
+  put(tip, kit.solid(ball(0.028, 10, 8), ginger, 1), 0.045, 0.016, 0.07);
+
+  // The head: ginger with tabby marks on the brow, a white blaze up the
+  // face, white muzzle and chin, a pink nose and big round eyes.
+  const head = live(put(group, new Group(), 0.035, 0.235, 0.115));
+  const rest = head.position.clone();
+  const skull = put(head, kit.solid(ball(0.1, 20, 16), ginger, 1.3), 0, 0, 0);
+  skull.scale.set(1.14, 0.95, 0.98);
+  for (const x of [-0.026, 0, 0.026])
+    put(
+      head,
+      kit.solid(pill(0.007, 0.04), stripe, null),
+      x,
+      0.082,
+      0.047,
+    ).rotation.x = -1.07;
+  const blaze = put(
+    head,
+    kit.solid(ball(0.05, 12, 10), white, null),
+    0,
+    0.012,
+    0.085,
+  );
+  blaze.scale.set(0.36, 1.3, 0.38);
+  for (const side of [-1, 1])
+    put(
+      head,
+      kit.solid(ball(0.045, 14, 10), white, 1),
+      side * 0.036,
+      -0.038,
+      0.066,
+    ).scale.set(1.1, 0.85, 0.9);
+  put(head, kit.solid(ball(0.03, 10, 8), white, null), 0, -0.068, 0.05);
+  put(
+    head,
+    kit.solid(ball(0.017, 10, 8), pink, null),
+    0,
+    -0.016,
+    0.107,
+  ).scale.set(1.4, 0.85, 0.9);
+  const smile = new TorusGeometry(0.013, 0.0035, 4, 10, Math.PI);
+  smile.rotateZ(Math.PI);
+  for (const side of [-1, 1])
+    put(
+      head,
+      kit.solid(smile, kit.paint(c.ink), null),
+      side * 0.013,
+      -0.04,
+      0.103,
+    );
+  const eyes = live(put(head, new Group(), 0, 0.014, 0.08));
+  eyes.scale.z = 0.85;
+  const iris = kit.lamp(c.catEye, c.catEyeGlow);
+  for (const side of [-1, 1]) {
+    put(eyes, kit.solid(ball(0.031, 16, 12), iris, 1), side * 0.044, 0, 0);
+    put(
+      eyes,
+      kit.solid(ball(0.02, 12, 10), kit.paint(c.ink), null),
+      side * 0.044,
+      0,
+      0.017,
+    );
+    put(
+      eyes,
+      kit.solid(ball(0.0075, 6, 5), kit.paint(c.white, 0.6), null),
+      side * 0.044 - 0.009,
+      0.011,
+      0.031,
+    );
+    // Eyes that catch the light at night (and blink with the eye).
+    put(eyes, kit.halo(c.catEyeGlow, 0.13, 0, 0.85), side * 0.044, 0, 0.045);
+  }
+  const ears = [-1, 1].map((side) => {
+    const ear = live(put(head, new Group(), side * 0.058, 0.072, -0.004));
+    put(
+      ear,
+      kit.solid(new ConeGeometry(0.045, 0.092, 14), ginger, 1.1),
+      0,
+      0.04,
+      0,
+    ).scale.z = 0.55;
+    put(
+      ear,
+      kit.solid(new ConeGeometry(0.029, 0.064, 12), pink, null),
+      0,
+      0.034,
+      0.014,
+    ).scale.z = 0.4;
+    return { ear, side };
+  });
+
+  // Picked up: hung from the scruff, long body, legs dangling, tail down.
+  const dangle = live(put(group, new Group(), 0, 0, 0));
+  dangle.visible = false;
+  put(dangle, kit.solid(pill(0.088, 0.3), ginger, 1.4), 0, -0.35, -0.01);
+  put(
+    dangle,
+    kit.solid(ball(0.075, 16, 12), white, 1),
+    0,
+    -0.36,
+    0.052,
+  ).scale.set(0.9, 2.15, 0.55);
+  const band = new TorusGeometry(0.09, 0.011, 5, 16, Math.PI);
+  band.rotateX(-Math.PI / 2);
+  for (const y of [-0.2, -0.29, -0.38, -0.47])
+    put(dangle, kit.solid(band, stripe, null), 0, y, -0.01);
+  for (const side of [-1, 1]) {
+    const arm = put(dangle, new Group(), side * 0.05, -0.17, 0.045);
+    arm.rotation.set(-0.3, 0, side * 0.12);
+    put(arm, kit.solid(pill(0.03, 0.1), white, 1), 0, -0.06, 0);
+    put(arm, kit.solid(ball(0.035, 12, 10), white, 1), 0, -0.13, 0.008);
+    const leg = put(dangle, new Group(), side * 0.052, -0.55, 0);
+    leg.rotation.z = side * 0.1;
+    put(leg, kit.solid(pill(0.034, 0.09), ginger, 1.1), 0, -0.06, 0);
+    put(leg, kit.solid(ball(0.038, 12, 10), white, 1), 0, -0.125, 0.012);
+  }
+  const hang = [
+    [0, -0.55, -0.075],
+    [0, -0.66, -0.11],
+    [0.04, -0.77, -0.1],
+    [0.085, -0.81, -0.03],
+  ] as const;
+  put(dangle, kit.solid(tube(hang, 0.028), ginger, 1.2), 0, 0, 0);
+  for (const ring of rings(hang, 0.029, [0.35, 0.7]))
+    put(dangle, kit.solid(ring, stripe, null), 0, 0, 0);
+  put(dangle, kit.solid(ball(0.028, 10, 8), ginger, 1), 0.085, -0.81, -0.03);
+  const hangHead = new Vector3(0, -0.085, 0.035);
+
+  const hearts = [0, 1, 2].map(() => {
+    const heart = put(group, kit.icon("heart", 0.13), 0, 0, 0);
+    heart.visible = false;
+    return heart;
+  });
+  const local = new Vector3();
+  const seed = Math.random() * 10;
+  let lifted = -1;
+  let petted = -10;
+  let mad = -10;
+  const pet: Pet = {
+    id: "cat",
+    group,
+    hang: 0,
+    reach: 0.72,
+    settle: 0.42,
+    lift(held, t) {
+      curl.visible = !held;
+      dangle.visible = held;
+      dangle.scale.y = 1;
+      head.position.copy(held ? hangHead : rest);
+      lifted = held ? t : -1;
+    },
+    poke(t, cross) {
+      if (cross) mad = t;
+      else petted = t;
+    },
+  };
+
+  return {
+    pet,
+    tick(t, view, bulb) {
+      const cross = t - mad < 2.8;
+      const since = t - petted;
+      // Breathing, with a purr after a pet.
+      curl.scale.y =
+        1 +
+        Math.sin(t * 1.9 + seed) * 0.02 +
+        (since < 2.2 ? Math.sin(t * 26) * 0.012 : 0);
+      if (lifted >= 0) {
+        // Cats are liquid: the longer it hangs, the longer it gets.
+        const held = t - lifted;
+        dangle.scale.y =
+          1 +
+          Math.min(0.32, held * 0.16) +
+          Math.exp(-held * 5) * Math.sin(held * 18) * 0.14;
+      }
+      // Watches whoever is looking, or looks up at the lion's idea.
+      group.worldToLocal(local.copy(view)).sub(head.position);
+      const glance = cross ? 0 : Math.min(1, bulb * 1.6);
+      const yaw = Math.max(-0.9, Math.min(0.9, Math.atan2(local.x, local.z)));
+      const pitch = Math.max(
+        -0.35,
+        Math.min(0.75, Math.atan2(local.y, Math.hypot(local.x, local.z))),
+      );
+      head.rotation.y = yaw + (0.7 - yaw) * glance;
+      head.rotation.x = -(pitch + (0.65 - pitch) * glance) * 0.75;
+      head.rotation.z = cross
+        ? Math.sin(t * 9) * 0.05
+        : Math.sin(t * 0.7 + seed) * 0.1;
+      eyes.scale.y = cross
+        ? 0.42
+        : since < 1.3
+          ? slowBlink(since)
+          : blink(t, seed);
+      for (const { ear, side } of ears) {
+        const twitch = (t + seed + (side > 0 ? 2.9 : 0)) % 5.8;
+        const flick = twitch < 0.3 ? Math.sin((twitch / 0.3) * Math.PI) : 0;
+        ear.rotation.x = cross ? -1 : -0.12 + glance * 0.15;
+        ear.rotation.z = side * (cross ? -1 : -0.36 - flick * 0.5);
+        ear.scale.setScalar(1 + glance * 0.12);
+      }
+      tip.rotation.y = cross
+        ? Math.sin(t * 15) * 0.6
+        : Math.sin(t * 1.3 + seed) * 0.25;
+      tip.rotation.z = cross ? 0.3 : Math.max(0, Math.sin(t * 0.9 + seed)) * 0.4;
+      hearts.forEach((heart, k) => {
+        const life = (since - 0.3 - k * 0.32) / 1.3;
+        heart.visible = life > 0 && life < 1;
+        if (!heart.visible) return;
+        heart.position.set(
+          head.position.x + (k - 1) * 0.07,
+          head.position.y + 0.14 + life * 0.32,
+          head.position.z,
+        );
+        heart.scale.setScalar(0.13 * Math.min(1, life * 5) * (1 - life * 0.4));
+        (heart.material as SpriteMaterial).opacity = Math.min(1, (1 - life) * 3);
       });
     },
   };
@@ -734,9 +1118,13 @@ export function lionCub(kit: Kit, carry?: "code"): Cub {
     sign = live(put(body, kit.icon(carry, 0.32), 0.06, 0.7, -0.1));
   }
   const seed = Math.random() * 10;
+  let cheered = -10;
   return {
     group,
     height: 0.75,
+    poke(t) {
+      cheered = t;
+    },
     walk(t, moving) {
       const step = t * 11 + seed;
       body.position.y = moving ? Math.abs(Math.sin(step)) * 0.03 : 0;
@@ -753,13 +1141,17 @@ export function lionCub(kit: Kit, carry?: "code"): Cub {
       if (sign) sign.position.y = 0.7 + Math.abs(Math.sin(step)) * 0.02;
     },
     tick(t) {
-      // Sitting up and waving a big front paw, for the visitor's island.
+      // Sitting up and waving a big front paw, for the visitor's island;
+      // a poke gets both paws up.
+      const cheer = t - cheered < 2.2;
       body.rotation.x = -0.5;
       body.position.set(0, 0.06 + Math.abs(Math.sin(t * 3.5)) * 0.012, -0.04);
-      legs[0].rotation.x = 0.35;
+      legs[0].scale.setScalar(cheer ? 1.6 : 1);
+      legs[0].rotation.x = cheer ? -0.35 : 0.35;
+      legs[0].rotation.z = cheer ? -2.3 - Math.sin(t * 14) * 0.32 : 0;
       legs[1].scale.setScalar(1.6);
       legs[1].rotation.x = -0.35;
-      legs[1].rotation.z = 2.3 + Math.sin(t * 7) * 0.32;
+      legs[1].rotation.z = 2.3 + Math.sin(t * (cheer ? 14 : 7)) * 0.32;
       legs[2].rotation.x = legs[3].rotation.x = -1.1;
       tail.rotation.y = Math.sin(t * 5) * 0.55;
       head.group.rotation.x = 0.35;
@@ -1352,11 +1744,17 @@ export function bearBarista(kit: Kit): Model {
     0.36,
     0.03,
   ).rotation.z = -0.25;
+  let sipped = -10;
   return {
     group,
     height: 0.9,
+    poke(t) {
+      sipped = t;
+    },
     tick(t) {
-      const sip = (t % 5.2) / 5.2;
+      // A sip every few seconds, and one at once when poked.
+      const sip =
+        t - sipped < 1.6 ? 0.62 + ((t - sipped) / 1.6) * 0.3 : (t % 5.2) / 5.2;
       const raise =
         sip > 0.62 && sip < 0.92 ? Math.sin(((sip - 0.62) / 0.3) * Math.PI) : 0;
       arm.rotation.x = -0.5 - raise * 1.5;
@@ -1445,14 +1843,20 @@ export function leopardCat(kit: Kit): Model {
     0,
   );
   put(tail, kit.solid(ball(0.022, 8, 6), spots, null), 0.2, 0.14, -0.02);
+  let grooved = -10;
   return {
     group,
     height: 0.5,
+    poke(t) {
+      grooved = t;
+    },
     tick(t) {
-      const beat = t * 4.2;
-      head.rotation.z = Math.sin(beat) * 0.16;
-      head.rotation.x = Math.abs(Math.sin(beat)) * -0.12;
-      tail.rotation.y = Math.sin(t * 1.6) * 0.35;
+      // Bobs to the record; a poke gets it headbanging for a moment.
+      const hype = t - grooved < 2.4 ? 1 : 0;
+      const beat = t * (4.2 + hype * 4.2);
+      head.rotation.z = Math.sin(beat) * (0.16 + hype * 0.12);
+      head.rotation.x = Math.abs(Math.sin(beat)) * -(0.12 + hype * 0.2);
+      tail.rotation.y = Math.sin(t * (1.6 + hype * 6)) * 0.35;
     },
   };
 }
@@ -1483,12 +1887,13 @@ export function database(kit: Kit): Model {
     32,
   );
   const colors = [c.paper, c.paper, c.yellow];
+  const lid = live(put(group, new Group(), 0, 0.49, 0));
   colors.forEach((color, k) =>
     put(
-      group,
+      k === 2 ? lid : group,
       kit.solid(platter, kit.paint(color), 1.3),
       0,
-      0.05 + k * 0.22,
+      k === 2 ? 0 : 0.05 + k * 0.22,
       0,
     ),
   );
@@ -1515,13 +1920,21 @@ export function database(kit: Kit): Model {
     });
   });
   put(group, kit.halo(c.sky, 1.4, 0.1, 0.7), 0, 0.4, 0);
+  let queried = -10;
   return {
     group,
     height: 0.75,
+    poke(t) {
+      queried = t;
+    },
     tick(t) {
+      // A poke runs a query: the top platter spins up and the lights race.
+      const s = Math.min(1, (t - queried) / 1.6);
+      lid.position.y = 0.49 + Math.sin(s * Math.PI) * 0.18;
+      lid.rotation.y = (1 - (1 - s) ** 3) * Math.PI * 4;
       leds.flat().forEach((material, k) => {
         material.color.copy(
-          Math.sin(t * 6 + k * 2.1) > 0.2 ? c.green : c.leafDeep,
+          Math.sin(t * (s < 1 ? 30 : 6) + k * 2.1) > 0.2 ? c.green : c.leafDeep,
         );
       });
     },
@@ -1615,20 +2028,38 @@ export function javaCafe(kit: Kit): Model {
     live(put(group, kit.puff(0.22), 0, 0.7, 0)),
   );
   const bear = bearBarista(kit);
-  put(group, bear.group, 0.5, 0.05, -0.15);
-  bear.group.rotation.y = -0.45;
+  live(put(group, bear.group, 0.5, 0.05, -0.15)).rotation.y = -0.45;
+  let brewed = -10;
   return {
     group,
     height: 0.95,
+    pets: [
+      {
+        id: "bear",
+        group: bear.group,
+        hang: 0.72,
+        reach: 0.72,
+        settle: 0.72,
+        poke(t) {
+          bear.poke?.(t);
+        },
+      },
+    ],
+    poke(t) {
+      brewed = t;
+      bear.poke?.(t);
+    },
     tick(t, view) {
+      // A poke brews a fresh cup: the steam billows for a moment.
+      const fresh = t - brewed < 2.6 ? 1 : 0;
       steam.forEach((cloud, k) => {
-        const life = (t * 0.4 + k / 4) % 1;
+        const life = (t * (0.4 + fresh * 0.5) + k / 4) % 1;
         cloud.position.set(
           cupAt.x + Math.sin(life * 6 + k * 2) * 0.1,
           0.6 + life * 0.8,
           Math.cos(life * 5 + k) * 0.06,
         );
-        cloud.scale.setScalar(0.12 + life * 0.3);
+        cloud.scale.setScalar((0.12 + life * 0.3) * (1 + fresh * 0.7));
         (cloud.material as SpriteMaterial).opacity =
           Math.sin(life * Math.PI) * 0.85;
       });
@@ -1685,7 +2116,13 @@ export function cloudTower(kit: Kit): Model {
     deck + 0.12,
     0,
   );
-  put(group, kit.halo(c.yellow, 1.1, 0.1, 1), 0, deck + 0.13, 0);
+  const beacon = put(
+    group,
+    kit.halo(c.yellow, 1.1, 0.1, 1),
+    0,
+    deck + 0.13,
+    0,
+  );
   const cloud = live(put(group, new Group(), 0, deck + 0.42, 0));
   for (const [x, y, z, r] of [
     [0, 0, 0, 0.24],
@@ -1716,21 +2153,37 @@ export function cloudTower(kit: Kit): Model {
       phase: k * 2.1,
     };
   });
+  let rained = -10;
   return {
     group,
     height: deck + 0.75,
+    rain: cloud,
+    poke(t) {
+      rained = t;
+    },
     tick(t) {
+      // A poke: the cloud jumps, the lamp flares, the gulls flap up out of
+      // the shower (the world lets it rain).
+      const s = t - rained;
+      const shower = s < 3 ? Math.sin((s / 3) * Math.PI) : 0;
       cloud.rotation.y = t * 0.25;
-      cloud.position.y = deck + 0.42 + Math.sin(t * 1.2) * 0.03;
+      cloud.position.y =
+        deck +
+        0.42 +
+        Math.sin(t * 1.2) * 0.03 +
+        (s < 0.6 ? Math.sin((s / 0.6) * Math.PI) * 0.12 : 0);
+      beacon.scale.setScalar(
+        1.1 * (1 + (s < 1.2 ? Math.sin((s / 1.2) * Math.PI) * 0.9 : 0)),
+      );
       for (const { gull, radius, height, speed, phase } of gulls) {
         const a = t * speed + phase;
         gull.group.position.set(
           Math.cos(a) * radius,
-          height + Math.sin(t * 1.3 + phase) * 0.08,
+          height + Math.sin(t * 1.3 + phase) * 0.08 + shower * 0.3,
           Math.sin(a) * radius,
         );
         gull.group.rotation.set(0, -a, Math.sin(t + phase) * 0.18 - 0.25);
-        gull.fly(t, Math.sin(t * 0.7 + phase) > -0.3);
+        gull.fly(t, shower < 0.1 && Math.sin(t * 0.7 + phase) > -0.3);
       }
     },
   };
@@ -1774,12 +2227,45 @@ export function stackTower(kit: Kit): Model {
       ((k % 3) - 1) * 0.02,
     );
   });
+  let shook = -10;
+  let fell = -10;
   return {
     group,
     height: 1.35,
+    // A poke shakes the tower; the big one knocks it over.
+    poke(t, big) {
+      if (t - fell < 3.4) return;
+      if (big) fell = t;
+      else shook = t;
+    },
     tick(t) {
-      tower.rotation.z = Math.sin(t * 1.25) * 0.03;
-      tower.rotation.x = Math.sin(t * 1.05 + 1) * 0.022;
+      const down = t - fell;
+      if (down < 3.4) {
+        // Tips over its left edge onto the grass, lies there a moment,
+        // then springs back up.
+        const tip =
+          down < 0.7
+            ? (down / 0.7) ** 2
+            : down < 2.2
+              ? 1 - Math.sin(((down - 0.7) / 0.25) * Math.PI) *
+                  Math.exp(-(down - 0.7) * 5) *
+                  0.06
+              : 1 - spring((down - 2.2) / 1.2);
+        const angle = Math.max(0, tip) * 1.45;
+        tower.rotation.set(0, 0, angle);
+        tower.position.set(
+          -0.39 + 0.39 * Math.cos(angle),
+          0.16 + 0.39 * Math.sin(angle),
+          0,
+        );
+        return;
+      }
+      const shake = Math.max(0, 1 - (t - shook) / 1.2);
+      tower.position.set(0, 0.16, 0);
+      tower.rotation.z =
+        Math.sin(t * 1.25) * 0.03 + Math.sin(t * 11) * 0.12 * shake;
+      tower.rotation.x =
+        Math.sin(t * 1.05 + 1) * 0.022 + Math.cos(t * 9) * 0.06 * shake;
     },
   };
 }
@@ -1830,23 +2316,37 @@ export function aiStar(
     live(put(group, kit.icon("spark", 0.2), 0, 1.2, 0)),
   );
   let kicked = -10;
+  let dizzy = -10;
   return {
     group,
     height: 1.7,
     kick(t) {
       kicked = t;
     },
+    // Each poke kicks the star; the big one makes it dizzy.
+    poke(t, big) {
+      kicked = t;
+      if (big) dizzy = t;
+    },
     tick(t, view) {
       const kick = Math.max(0, 1 - (t - kicked) / 0.9);
+      // Dizzy: five whole turns that slow down, with a wobble.
+      const s = Math.min(3, t - dizzy);
+      const woozy = 1 - s / 3;
+      const turns = ((s - (s * s) / 6) / 1.5) * Math.PI * 10;
       // Always faces the viewer, so the star reads from any angle; it turns
       // in its own plane instead.
       floating.lookAt(view);
-      floating.rotateZ(Math.sin(t * 0.9) * 0.35 + kick * 6.28);
-      floating.position.y = 1.25 + Math.sin(t * 1.6) * 0.08 + kick * 0.22;
+      floating.rotateZ(Math.sin(t * 0.9) * 0.35 + kick * 6.28 + turns);
+      floating.position.set(
+        Math.sin(t * 9) * 0.16 * woozy,
+        1.25 + Math.sin(t * 1.6) * 0.08 + kick * 0.22,
+        Math.cos(t * 7) * 0.1 * woozy,
+      );
       floating.scale.setScalar(1 + kick * 0.45);
-      glow.scale.setScalar(2.4 + kick * 2.6);
+      glow.scale.setScalar(2.4 + kick * 2.6 + woozy * 1.5);
       sparks.forEach((spark, k) => {
-        const a = t * 1.4 + (k * Math.PI * 2) / 3;
+        const a = t * (1.4 + woozy * 6) + (k * Math.PI * 2) / 3;
         spark.position.set(
           Math.cos(a) * 0.55,
           1.25 + Math.sin(t * 2 + k) * 0.18,
@@ -1997,10 +2497,32 @@ export function familyHome(kit: Kit): Model {
       0.455,
       z,
     );
+  const hearts = [0, 1, 2].map(() => {
+    const heart = put(group, kit.icon("heart", 0.2), 0.2, 0.9, -0.12);
+    heart.visible = false;
+    return heart;
+  });
+  let loved = -10;
   return {
     group,
     height: 0.95,
+    poke(t) {
+      loved = t;
+    },
     tick(t) {
+      // A poke sends hearts up the chimney with the smoke.
+      hearts.forEach((heart, k) => {
+        const life = (t - loved - k * 0.35) / 1.6;
+        heart.visible = life > 0 && life < 1;
+        if (!heart.visible) return;
+        heart.position.set(
+          0.2 + Math.sin(life * 5 + k) * 0.1,
+          0.95 + life * 0.8,
+          -0.12,
+        );
+        heart.scale.setScalar(0.2 * Math.min(1, life * 6));
+        (heart.material as SpriteMaterial).opacity = Math.min(1, (1 - life) * 3);
+      });
       smoke.forEach((cloud, k) => {
         const life = (t * 0.28 + k / 4) % 1;
         cloud.position.set(
@@ -2049,7 +2571,10 @@ export function careBot(kit: Kit): Model {
     0.3,
     0.215,
   );
-  const bot = live(put(group, new Group(), 0.32, 0, 0.12));
+  // The robot can be picked up: `holder` is what the world moves, `bot`
+  // what the robot itself bobs.
+  const holder = live(put(group, new Group(), 0.32, 0, 0.12));
+  const bot = live(put(holder, new Group(), 0, 0, 0));
   put(
     bot,
     kit.solid(rounded(0.2, 0.22, 0.16, 0.06), kit.paint(c.white), 1.2),
@@ -2106,15 +2631,39 @@ export function careBot(kit: Kit): Model {
     0.16,
     0,
   ).rotation.z = 0.2;
+  let cheered = -10;
+  const cheer = (t: number) => {
+    cheered = t;
+  };
   return {
     group,
     height: 0.75,
+    pets: [
+      {
+        id: "robot",
+        group: holder,
+        hang: 0.55,
+        reach: 0.55,
+        settle: 0.55,
+        poke: cheer,
+      },
+    ],
+    poke: cheer,
     tick(t) {
-      const greet = t % 6 < 2.4;
-      wave.rotation.z = greet ? 2.4 + Math.sin(t * 9) * 0.35 : 0.3;
-      head.rotation.y = Math.sin(t * 0.9) * 0.4;
+      // A poke: waves twice as fast, spins its head round and hops.
+      const s = t - cheered;
+      const happy = s < 2.2;
+      const greet = happy || t % 6 < 2.4;
+      wave.rotation.z = greet
+        ? 2.4 + Math.sin(t * (happy ? 18 : 9)) * 0.35
+        : 0.3;
+      head.rotation.y = happy
+        ? Math.min(1, s / 0.8) * Math.PI * 2
+        : Math.sin(t * 0.9) * 0.4;
       head.rotation.z = greet ? Math.sin(t * 4.5) * 0.08 : 0;
-      bot.position.y = Math.abs(Math.sin(t * 2.2)) * 0.01;
+      bot.position.y = happy
+        ? Math.abs(Math.sin(s * 9)) * 0.06 * (1 - s / 2.2)
+        : Math.abs(Math.sin(t * 2.2)) * 0.01;
     },
   };
 }
@@ -2179,15 +2728,29 @@ export function testLab(kit: Kit): Model {
   bowl.rotateX(Math.PI);
   const tilt = put(dish, kit.solid(bowl, kit.paint(c.white), 1.1), 0, 0.06, 0);
   tilt.rotation.x = -0.9;
+  let tested = -10;
+  let spun = 0;
   return {
     group,
     height: 0.75,
+    poke(t) {
+      tested = t;
+      spun += 1;
+    },
     tick(t) {
+      // A poke runs the whole test at once: every light flashes and the
+      // dish whirls round twice.
+      const s = t - tested;
       const step = t === 0 ? 3 : Math.floor(t / 0.8) % 4;
       steps.forEach((light, k) =>
-        light.material.color.copy(k < step ? light.on : light.off),
+        light.material.color.copy(
+          (s < 1.8 ? Math.floor(s / 0.2) % 2 === 0 : k < step)
+            ? light.on
+            : light.off,
+        ),
       );
-      dish.rotation.y = t * 0.9;
+      const whirl = 1 - (1 - Math.min(1, s / 1.6)) ** 3;
+      dish.rotation.y = t * 0.9 + (spun - 1 + whirl) * Math.PI * 4;
     },
   };
 }
@@ -2269,18 +2832,37 @@ export function recordPlayer(kit: Kit): Model {
     }
   }
   const cat = leopardCat(kit);
-  put(group, cat.group, 0.12, 0.18, 0.2);
-  cat.group.rotation.y = 0.35;
+  live(put(group, cat.group, 0.12, 0.18, 0.2)).rotation.y = 0.35;
   const notes = [0, 1, 2].map(() =>
     live(put(group, kit.icon("note", 0.28), 0, 0.4, 0)),
   );
+  let scratched = -10;
   return {
     group,
     height: 0.75,
+    pets: [
+      {
+        id: "leopard",
+        group: cat.group,
+        hang: 0.4,
+        reach: 0.4,
+        settle: 0.4,
+        poke(t) {
+          cat.poke?.(t);
+        },
+      },
+    ],
+    poke(t) {
+      scratched = t;
+      cat.poke?.(t);
+    },
     tick(t, view) {
-      platter.rotation.y = -t * 2.4;
+      // A poke: the record is scratched back and forth and the notes fly.
+      const s = t - scratched;
+      platter.rotation.y =
+        -t * 2.4 + (s < 1.4 ? Math.sin(s * 15) * 0.9 * (1 - s / 1.4) : 0);
       notes.forEach((note, k) => {
-        const life = (t * 0.34 + k / 3) % 1;
+        const life = (t * (s < 2 ? 0.8 : 0.34) + k / 3) % 1;
         note.position.set(
           -0.08 + Math.sin(life * 5 + k * 2) * 0.3,
           0.35 + life * 1.1,
@@ -2378,25 +2960,57 @@ export function toolShop(kit: Kit): Model {
     0.18,
     0.46,
   );
+  const toolbox = live(put(group, new Group(), -0.18, 0.2, 0.46));
   put(
-    group,
+    toolbox,
     kit.solid(rounded(0.18, 0.08, 0.1, 0.02), kit.paint(c.coral), 1),
-    -0.18,
-    0.24,
-    0.46,
+    0,
+    0.04,
+    0,
   );
   put(
-    group,
+    toolbox,
     kit.solid(
       new TorusGeometry(0.04, 0.008, 4, 10, Math.PI),
       kit.paint(c.ink),
       null,
     ),
-    -0.18,
-    0.28,
-    0.46,
+    0,
+    0.08,
+    0,
   );
-  return { group, height: 0.9 };
+  const sparks = [0, 1, 2].map(() => {
+    const spark = put(group, kit.icon("spark", 0.16), -0.18, 0.3, 0.46);
+    spark.visible = false;
+    return spark;
+  });
+  let opened = -10;
+  return {
+    group,
+    height: 0.9,
+    poke(t) {
+      opened = t;
+    },
+    tick(t) {
+      // A poke: the toolbox hops and flips, and sparks fly out.
+      const s = t - opened;
+      const hop = s < 0.8 ? s / 0.8 : 1;
+      toolbox.position.y = 0.2 + Math.sin(hop * Math.PI) * 0.3;
+      toolbox.rotation.x = (1 - (1 - hop) ** 2) * Math.PI * 2;
+      sparks.forEach((spark, k) => {
+        const life = (s - 0.2) / 0.9;
+        spark.visible = life > 0 && life < 1;
+        if (!spark.visible) return;
+        const a = (k / 3) * Math.PI * 2 + 0.5;
+        spark.position.set(
+          -0.18 + Math.cos(a) * life * 0.35,
+          0.35 + life * 0.3,
+          0.46 + Math.sin(a) * life * 0.2,
+        );
+        (spark.material as SpriteMaterial).opacity = 1 - life;
+      });
+    },
+  };
 }
 
 // I ④: the last mile, a five-line staff road leaving for the horizon with
@@ -2459,17 +3073,28 @@ export function staffRoad(kit: Kit, lift: number): Model {
   const songs = Array.from({ length: 8 }, () =>
     live(put(group, kit.icon("note", 0.42), 0, 0, 0)),
   );
+  let raced = -10;
+  let ahead = 0;
   return {
     group,
     height: 0.75,
+    poke(t) {
+      raced = t;
+      ahead += 1;
+    },
     tick(t) {
+      // A poke sends the songs racing down the road for a moment.
+      const s = Math.min(1, (t - raced) / 2);
+      const rush = (ahead - 1 + (1 - (1 - s) ** 2)) * 0.3;
+      const bump = Math.sin(s * Math.PI);
       songs.forEach((sprite, k) => {
-        const along = ((t * 0.09 + k / songs.length) % 1) * length;
+        const along = ((t * 0.09 + rush + k / songs.length) % 1) * length;
         sprite.position.set(
           Math.sin(along * 0.9 + k) * 0.22,
-          -lift + 0.4 + Math.sin(t * 2 + k) * 0.06,
+          -lift + 0.4 + Math.sin(t * 2 + k) * 0.06 + bump * 0.25,
           -0.6 - along,
         );
+        sprite.scale.setScalar(0.42 * (1 + bump * 0.5));
         (sprite.material as SpriteMaterial).opacity =
           Math.min(1, along / 1.5) * (1 - along / length);
       });
@@ -2527,11 +3152,24 @@ export function storySign(kit: Kit): Model {
     );
   }
   const host = lionCub(kit);
-  put(group, host.group, 0.42, 0, 0.22);
-  host.group.rotation.y = -0.35;
+  live(put(group, host.group, 0.42, 0, 0.22)).rotation.y = -0.35;
+  const cheer = (t: number) => {
+    host.poke?.(t);
+  };
   return {
     group,
     height: 1.15,
+    pets: [
+      {
+        id: "host",
+        group: host.group,
+        hang: 0.5,
+        reach: 0.5,
+        settle: 0.5,
+        poke: cheer,
+      },
+    ],
+    poke: cheer,
     tick(t, view) {
       host.tick?.(t, view);
     },

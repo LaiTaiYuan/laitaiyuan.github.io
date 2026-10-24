@@ -252,7 +252,24 @@
 .isl-stage[data-live] .isl-hud {
   display: flex;
 }
-.isl-hud > * {
+.isl-hud-main,
+.isl-hud-side {
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.isl-hud-main {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  min-width: 0;
+}
+.isl-hud-side {
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+}
+.isl-hud-main > *,
+.isl-hud-side > * {
   pointer-events: auto;
 }
 .isl-back {
@@ -273,10 +290,15 @@
 .isl-back:hover {
   background: var(--tb-yellow);
 }
+.isl-poke {
+  background: var(--tb-yellow);
+}
+.isl-poke:hover {
+  background: var(--tb-coral);
+}
 .isl-time {
   display: flex;
   gap: 2px;
-  margin-left: auto;
   padding: 3px;
   background: var(--tb-white);
   border: 2px solid var(--tb-ink);
@@ -300,6 +322,53 @@
 }
 .isl-time button[aria-pressed="true"] {
   background: var(--tb-yellow);
+}
+/* The easter egg counter; a click gives a hint for the next egg */
+.isl-eggs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px 4px 8px;
+  background: var(--tb-white);
+  color: var(--tb-ink);
+  border: 2px solid var(--tb-ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--tb-ink);
+  font: 700 12px var(--tb-mono);
+  cursor: pointer;
+}
+.isl-eggs b {
+  font-weight: 900;
+}
+.isl-eggs:hover {
+  background: var(--tb-yellow-light);
+}
+/* An easter egg found */
+.isl-toast {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  left: 12px;
+  display: none;
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.isl-stage[data-live] .isl-toast {
+  display: block;
+}
+.isl-toast > span {
+  display: inline-block;
+  padding: 7px 14px;
+  background: var(--tb-yellow);
+  color: var(--tb-ink);
+  border: 2px solid var(--tb-ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--tb-ink);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.45;
+  animation: isl-pop 0.45s var(--tb-ease-spring) both;
 }
 .isl-lion {
   position: absolute;
@@ -633,6 +702,22 @@
   .isl-hud {
     inset: 10px 10px auto;
   }
+  .isl-hud-main {
+    flex-direction: column;
+  }
+  .isl-back {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  /* On a phone the lion's bubble already says it: the note is for screen
+     readers only */
+  .isl-stage[data-live] .isl-toast {
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .isl-tag > span {
     gap: 4px;
     padding: 3px 8px 3px 3px;
@@ -666,7 +751,8 @@
     transition: none;
   }
   .isl-lion > span,
-  .isl-back {
+  .isl-back,
+  .isl-toast > span {
     animation: none;
   }
 }
