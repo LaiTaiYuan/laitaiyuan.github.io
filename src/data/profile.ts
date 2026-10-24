@@ -6,7 +6,7 @@ export const profile = {
   jobTitle: "軟體工程師",
   story: "聽故事、寫故事，一起創造故事。",
   publishedAt: "2026-09-18T08:52:59Z",
-  updatedAt: "2026-09-19T06:00:00Z",
+  updatedAt: "2026-10-24T06:30:00Z",
   url: "https://laitaiyuan.github.io/",
   title: "賴泰元 Leonard Lai｜軟體工程師、AI 應用與音樂創作",
   description:
@@ -48,6 +48,15 @@ export const publicEvidence = [
 ];
 
 export const tracks = [
+  {
+    title: "展翅 - 高98甲，我們巔峰見",
+    year: "2026",
+    duration: "4:26",
+    artist: "LeonardLai",
+    id: "22Fpw1Q7pde6E2y2zI4zur",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02d3dba6dce4b5fd9bf108bbda",
+  },
   {
     title: "Aurora in July",
     year: "2026",

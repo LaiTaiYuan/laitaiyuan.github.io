@@ -1,6 +1,6 @@
 # 公開內容與來源
 
-最後核對：2026-10-02。只記錄公開、可驗證及本人明確提供的內容。
+最後核對：2026-10-24。只記錄公開、可驗證及本人明確提供的內容。
 
 ## 身分與目前工作
 
@@ -42,7 +42,8 @@
 ## 音樂
 
 - 本人確認 [Spotify artist 4Spm3n5CXCuQGDG1Gg76QG](https://open.spotify.com/artist/4Spm3n5CXCuQGDG1Gg76QG) 為自己的作品。曲名、共同藝人、時長與封面由其官方 Spotify 嵌入資料核對。
-- 曲目：Aurora in July（LeonardLai）、Baby RAP（LeonardLai, LAI, TAI-YUAN）、賴沛小蘋果（LeonardLai, LAI, TAI-YUAN）、歡迎光臨，小孩（Pinhsu, LeonardLai）。
+- 曲目：展翅 - 高98甲，我們巔峰見（LeonardLai）、Aurora in July（LeonardLai）、Baby RAP（LeonardLai, LAI, TAI-YUAN）、賴沛小蘋果（LeonardLai, LAI, TAI-YUAN）、歡迎光臨，小孩（Pinhsu, LeonardLai）。
+- 2026-10-24 新增「展翅 - 高98甲，我們巔峰見」：本人告知 Spotify 有新作品，Spotify 藝人作品頁列出此單曲，2026-10-22 發行；曲名、藝人、時長（265,920 毫秒，四捨五入為 4:26）與封面以官方嵌入資料核對。同名 MV 在本人 YouTube 頻道（https://www.youtube.com/watch?v=w-iRX68osZo，標題與頻道以 YouTube oEmbed 核對）。Apple Music、Amazon Music 與 YouTube Music 尚未核對此首，下面三個平台的核對只涵蓋前四首。
 - [Apple Music](https://music.apple.com/tw/artist/leonardlai/1741625275)：以 Apple 官方 iTunes Search／Lookup API 核對藝人 ID 與合作歌曲。
 - [Amazon Music](https://music.amazon.in/artists/B0D1W2MFNP/leonardlai)：核對上述目錄與發行年份；Aurora in July 為 2026，Baby RAP 與賴沛小蘋果為 2025，歡迎光臨，小孩為 2024。
 - [YouTube Music 主題頻道](https://www.youtube.com/channel/UCWZX3VDdDFLlFQTJWGzFdCg)顯示相同四首作品。平台上架時間與原發行時間不同，不以 YouTube 上架日覆蓋原發行年份。
@@ -60,8 +61,8 @@
 
 - 片名副標「一輩子要完成的夢想」依本人要求（2026-10-02）加上，說明這一哩路是一輩子要完成的夢想。
 - 本人提供（2026-10-02）：人生最後一哩路想完成的夢想，是把身邊遇到的人、事、物都做成數首歌；也希望做出來的故事與回憶能成為經典、持續詠唱（頁面「序」與片尾的願望句即本人原話）。
-- 已完成：寫給老婆 3 首、小孩 4 首（其中一首是小孩們的 RAP 團體歌）、eGroup 團隊 James 1 首。尚未完成：爺爺奶奶、阿公阿嬤、爸爸媽媽、媽媽那邊的姨丈阿姨們、媽媽那邊同一輩的表兄弟姊妹、爸爸那邊的姑姑大伯們、eGroup 團隊、高中同學、大學同學。人名只用本人清單上的稱謂與「James」。
-- 已上架的歌與寫給誰由本人對應（2026-10-02）：老婆——Aurora in July；小孩——Aurora in July、Baby RAP、賴沛小蘋果、歡迎光臨，小孩（Aurora in July 依本人選擇同時列在老婆與小孩兩站）；eGroup 團隊・James——本人 YouTube 頻道的「James之歌」（https://www.youtube.com/watch?v=cLasHwXHVpE，標題以 YouTube oEmbed 核對）。Spotify 連結取自上方已核對的曲目 ID；其餘完成的歌未列出連結。
+- 已完成：寫給老婆 3 首、小孩 4 首（其中一首是小孩們的 RAP 團體歌）、eGroup 團隊 James 1 首；2026-10-24 本人另提供：eGroup 團隊 Ivy 1 首、高中同學 1 首。尚未完成：爺爺奶奶、阿公阿嬤、爸爸媽媽、媽媽那邊的姨丈阿姨們、媽媽那邊同一輩的表兄弟姊妹、爸爸那邊的姑姑大伯們、eGroup 團隊、大學同學。人名只用本人清單上的稱謂與本人提供的「James」「Ivy」；本人寫的是「團隊的 Ivy」，依 James 一站的寫法標成「eGroup 團隊・Ivy」。
+- 已上架的歌與寫給誰由本人對應（2026-10-02）：老婆——Aurora in July；小孩——Aurora in July、Baby RAP、賴沛小蘋果、歡迎光臨，小孩（Aurora in July 依本人選擇同時列在老婆與小孩兩站）；eGroup 團隊・James——本人 YouTube 頻道的「James之歌」（https://www.youtube.com/watch?v=cLasHwXHVpE，標題以 YouTube oEmbed 核對）。2026-10-24 本人另對應：eGroup 團隊・Ivy——「IVY 生日快樂MV」（https://www.youtube.com/watch?v=Sq1yCRfcBmI）；高中同學——「展翅 - 高98甲，我們巔峰見」MV（https://www.youtube.com/watch?v=w-iRX68osZo，本人更正後提供的公開網址）。兩支影片的標題以 YouTube oEmbed 核對，皆在本人「賴泰元」頻道；Ivy 一站的心意句提到生日，取自影片標題。Spotify 連結取自上方已核對的曲目 ID；其餘完成的歌未列出連結。
 - 序的前四句與每一站的一句話（`src/data/lastMile.ts` 的 `story`）由本站依上述夢想撰寫，只寫心意與願望，不寫未經本人提供的回憶或事實，本人可隨時改寫。
 
 ## 圖像

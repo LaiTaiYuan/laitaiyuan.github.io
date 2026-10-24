@@ -9,7 +9,7 @@ import { tracks } from "./profile";
 // only needs this number changed. `story` is a line about what the song is
 // for: wishes and intentions only, never a memory or a fact he has not shared,
 // so he can rewrite any of them in his own words. `listen` links the finished
-// songs that are already out, as Leonard matched them (2026-10-02).
+// songs that are already out, as Leonard matched them (2026-10-02, 2026-10-24).
 export type MileListen = {
   title: string;
   url: string;
@@ -68,6 +68,18 @@ export const mileStops: MileStop[] = [
     ],
   },
   {
+    who: "eGroup 團隊・Ivy",
+    songs: 1,
+    story: "把生日的祝福寫成歌，送給同一個團隊的你。",
+    listen: [
+      {
+        title: "IVY 生日快樂MV",
+        url: "https://www.youtube.com/watch?v=Sq1yCRfcBmI",
+        on: "YouTube",
+      },
+    ],
+  },
+  {
     who: "爺爺奶奶",
     songs: 0,
     story: "把爺爺奶奶的故事寫成歌，讓下一代也能接著唱。",
@@ -104,8 +116,15 @@ export const mileStops: MileStop[] = [
   },
   {
     who: "高中同學",
-    songs: 0,
+    songs: 1,
     story: "青春的那幾年，想用一首歌找回來。",
+    listen: [
+      {
+        title: "展翅 - 高98甲，我們巔峰見",
+        url: "https://www.youtube.com/watch?v=w-iRX68osZo",
+        on: "YouTube",
+      },
+    ],
   },
   {
     who: "大學同學",
