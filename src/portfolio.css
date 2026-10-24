@@ -1554,6 +1554,8 @@ html:not(.tb-js) .lp-lion-poke {
   color: var(--tb-white);
   --tb-focus: var(--tb-yellow);
   border-block: 3px solid var(--tb-ink);
+  /* A vinyl sliding out of its sleeve never widens the page */
+  overflow-x: clip;
 }
 .lp-music .lp-eyebrow {
   color: var(--tb-yellow);
@@ -2913,6 +2915,16 @@ html:not(.tb-js) .lp-lion-poke {
 }
 .lp-record-cover:hover .lp-vinyl {
   transform: translate3d(54%, 0, 0);
+}
+/* The record at the right end of a row slides its vinyl out to the left,
+   so the whole disc stays on the page */
+.lp-record:last-child .lp-record-cover:hover .lp-vinyl {
+  transform: translate3d(-54%, 0, 0);
+}
+@media (max-width: 760px) {
+  .lp-record:nth-child(even) .lp-record-cover:hover .lp-vinyl {
+    transform: translate3d(-54%, 0, 0);
+  }
 }
 .lp-cursor {
   transition:
