@@ -1,13 +1,10 @@
 import {
   AdditiveBlending,
   BackSide,
-  BoxGeometry,
   BufferGeometry,
   CanvasTexture,
   CatmullRomCurve3,
   Color,
-  ConeGeometry,
-  CylinderGeometry,
   DataTexture,
   DirectionalLight,
   ExtrudeGeometry,
@@ -22,6 +19,8 @@ import {
   MeshBasicMaterial,
   MeshToonMaterial,
   NearestFilter,
+  Object3D,
+  PCFShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   Points,
@@ -37,8 +36,7 @@ import {
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
-  TextureLoader,
-  TorusGeometry,
+  TubeGeometry,
   UniformsLib,
   UniformsUtils,
   Vector2,
@@ -46,7 +44,7 @@ import {
   Vector4,
   WebGLRenderer,
 } from "three";
-import type { Material, Object3D, Texture } from "three";
+import type { Material, Texture } from "three";
 import {
   mergeGeometries,
   mergeVertices,
@@ -54,28 +52,55 @@ import {
 import { brandLogo } from "./data/brandMark";
 import { islands, youIsland } from "./data/islands";
 import type { IslandId } from "./data/islands";
+import {
+  aiStar,
+  ball,
+  careBot,
+  cloudTower,
+  database,
+  dolphin,
+  familyHome,
+  flora,
+  javaCafe,
+  lionCub,
+  lionDesk,
+  magpie,
+  put,
+  recordPlayer,
+  rounded,
+  seaTurtle,
+  stackTower,
+  staffRoad,
+  storySign,
+  testLab,
+  tones,
+  toolShop,
+} from "./islandModels";
+import type { Kit, Model, Tokens } from "./islandModels";
 import type { Daypart } from "./motion";
 
 // 「LAI 群島」 in WebGL (three.js, loaded only when the section comes near).
-// The three letter islands are the brand mark extruded out of a halftone sea,
-// with a small blank island under the A for the visitor. Comic look: toon
-// shading in three steps and an ink outline around every solid (an inverted
-// hull pushed out a fixed number of pixels). The islands rise out of the sea
-// when the section first shows, then the camera climbs from sea level to the
-// bird's-eye view, so the name only reads once you are above it; picking an
-// island flies the camera there. Animals
-// keep the 聽 → 寫 → 創 loop running: magpies bring stories in from the
-// visitor's island, lion cubs carry them across the API bridges (growing as
-// they pass the AI star), and turtles bring the finished work back.
-// Decoration only: every word and link lives in the HTML around the canvas.
+// The three letter islands are the brand mark raised out of a halftone sea,
+// each a sand beach under an earth cliff and a grass plateau, with a small
+// blank-page island under the A for the visitor. Toon shading with soft
+// shadows and ink outlines tinted from each colour. The islands rise out of
+// the sea when the section first shows, then the camera climbs from sea
+// level to the bird's-eye view, so the name only reads once you are above
+// it; picking an island flies the camera there. Animals keep the 聽 → 寫 →
+// 創 loop running (magpies bring stories in from the visitor's island, lion
+// cubs carry them over the API bridges and grow them at the AI star, turtles
+// bring the finished work back), and the islands live their own lives:
+// Leonard's lion typing at his desk, a black bear at the Java café, a
+// leopard cat at the record player, gulls round the cloud tower, pink
+// dolphins jumping, fireflies at night. Decoration only: every word and link
+// lives in the HTML around the canvas. Models are in islandModels.ts.
 
 const S = 0.1; // world units per logo unit
 const ORIGIN = [111, 100] as const; // logo point at the world origin
-const DEPTH = 0.7;
-const BEVEL = 0.16;
-const BEVEL_SIZE = 0.22;
-const LIFT = -0.35;
-const TOP = DEPTH + BEVEL + LIFT; // height of the island tops
+const SAND = { depth: 0.36, bevel: 0.1, size: 0.3, lift: -0.28 };
+const BEACH = SAND.depth + SAND.bevel + SAND.lift; // height of the beach
+const GRASS = { depth: 0.3, bevel: 0.07, inset: 0.42 };
+const TOP = BEACH + GRASS.depth + GRASS.bevel * 2 - 0.07; // grass plateau
 const FOV = 30;
 const FLIGHT = 1.25; // seconds for the camera to fly to an island
 const REVEAL = 2.8; // seconds for the first climb from sea level
@@ -152,6 +177,22 @@ function edgeDistance(points: readonly Point[], x: number, y: number) {
   return best;
 }
 
+// How far inside an island a logo point is, in world units (negative: sea).
+function depthIn(lx: number, ly: number) {
+  let best = -Infinity;
+  for (const points of Object.values(outlines)) {
+    const d = edgeDistance(points, lx, ly) * S;
+    best = Math.max(best, inside(points, lx, ly) ? d : -d);
+  }
+  const [cx, cy] = youIsland.center;
+  return Math.max(best, (youIsland.radius - Math.hypot(lx - cx, ly - cy)) * S);
+}
+// The ground height under a world point: plateau, beach or sea.
+const groundAt = (x: number, z: number) => {
+  const d = depthIn(x / S + ORIGIN[0], z / S + ORIGIN[1]);
+  return d > GRASS.inset - 0.06 ? TOP : d > -SAND.size * 0.5 ? BEACH : 0;
+};
+
 // ---------------------------------------------------------------------------
 // Colours: only the site's --tb-* tokens, read from the stage's styles.
 // ---------------------------------------------------------------------------
@@ -175,15 +216,18 @@ function readTokens(element: HTMLElement) {
   };
   const color = Object.fromEntries(
     Object.entries(hex).map(([key, value]) => [key, new Color(value)]),
-  ) as Record<keyof typeof hex, Color>;
+  ) as Tokens;
   return { hex, color };
 }
-type Tokens = ReturnType<typeof readTokens>;
 const mix = (a: Color, b: Color, t: number) => a.clone().lerp(b, t);
+const flat = (geometry: BufferGeometry) =>
+  geometry.index ? geometry.toNonIndexed() : geometry;
 
 type Palette = {
-  sky: Color;
+  horizon: Color;
+  zenith: Color;
   sea: Color;
+  shallow: Color;
   dot: Color;
   foam: Color;
   sun: Color;
@@ -194,92 +238,96 @@ type Palette = {
   fillPower: number;
   glow: number;
 };
+const colorKeys = [
+  "horizon",
+  "zenith",
+  "sea",
+  "shallow",
+  "dot",
+  "foam",
+  "sun",
+  "fill",
+  "under",
+] as const;
 
-function palettes({ color: c }: Tokens): Record<Daypart, Palette> {
+function palettes(c: Tokens): Record<Daypart, Palette> {
   return {
     morning: {
-      sky: mix(c.yellowLight, c.sky, 0.45),
-      sea: mix(c.blue, c.sky, 0.28),
-      dot: mix(c.sky, c.white, 0.35),
+      horizon: mix(c.yellowLight, c.coral, 0.12),
+      zenith: mix(c.sky, c.blue, 0.2),
+      sea: mix(c.blue, c.sky, 0.3),
+      shallow: mix(c.sky, c.white, 0.35),
+      dot: mix(c.sky, c.white, 0.4),
       foam: c.white.clone(),
       sun: mix(c.yellowLight, c.white, 0.3),
-      sunAt: new Vector3(14, 10, 8),
-      sunPower: 2.7,
-      fill: c.sky.clone(),
+      sunAt: new Vector3(14, 10, 9),
+      sunPower: 2.5,
+      fill: mix(c.sky, c.white, 0.3),
       under: c.yellowLight.clone(),
-      fillPower: 1.5,
+      fillPower: 1.6,
       glow: 0.12,
     },
     day: {
-      sky: mix(c.sky, c.white, 0.4),
+      horizon: mix(c.sky, c.white, 0.55),
+      zenith: mix(c.sky, c.blue, 0.35),
       sea: c.blue.clone(),
-      dot: mix(c.sky, c.blue, 0.25),
+      shallow: mix(c.sky, c.blue, 0.2),
+      dot: mix(c.sky, c.blue, 0.2),
       foam: c.white.clone(),
       sun: c.white.clone(),
-      sunAt: new Vector3(5, 16, 10),
-      sunPower: 2.9,
-      fill: c.white.clone(),
+      sunAt: new Vector3(6, 16, 10),
+      sunPower: 2.6,
+      fill: mix(c.sky, c.white, 0.55),
       under: c.yellowLight.clone(),
-      fillPower: 1.6,
+      fillPower: 1.75,
       glow: 0,
     },
     evening: {
-      sky: mix(c.coral, c.yellow, 0.4),
-      sea: mix(c.blue, c.ink, 0.22),
+      horizon: mix(c.coral, c.yellow, 0.45),
+      zenith: mix(c.blue, c.coral, 0.35),
+      sea: mix(c.blue, c.ink, 0.2),
+      shallow: mix(c.coral, c.sky, 0.45),
       dot: mix(c.coral, c.blue, 0.45),
       foam: mix(c.yellowLight, c.coral, 0.15),
-      sun: mix(c.yellowLight, c.coral, 0.32),
-      sunAt: new Vector3(-15, 8, 6),
-      sunPower: 2.7,
-      fill: mix(c.yellowLight, c.coral, 0.2),
+      sun: mix(c.yellowLight, c.coral, 0.35),
+      sunAt: new Vector3(-15, 8, 7),
+      sunPower: 2.5,
+      fill: mix(c.yellowLight, c.coral, 0.25),
       under: mix(c.blue, c.coral, 0.3),
-      fillPower: 1.35,
+      fillPower: 1.45,
       glow: 0.65,
     },
     night: {
-      sky: mix(c.ink, c.blue, 0.32),
+      horizon: mix(c.blue, c.ink, 0.5),
+      zenith: mix(c.ink, c.blue, 0.18),
       sea: mix(c.blue, c.ink, 0.62),
-      dot: mix(c.blue, c.sky, 0.2),
-      foam: mix(c.sky, c.blue, 0.35),
+      shallow: mix(c.blue, c.sky, 0.25),
+      dot: mix(c.blue, c.sky, 0.22),
+      foam: mix(c.sky, c.blue, 0.3),
       sun: mix(c.sky, c.white, 0.62),
-      sunAt: new Vector3(-6, 14, -2),
-      sunPower: 1.6,
+      sunAt: new Vector3(-7, 14, 4),
+      sunPower: 1.5,
       fill: mix(c.blue, c.sky, 0.55),
       under: mix(c.ink, c.blue, 0.4),
-      fillPower: 1.25,
+      fillPower: 1.3,
       glow: 1,
     },
   };
 }
 
 function blend(from: Palette, to: Palette, t: number, out: Palette) {
-  for (const key of [
-    "sky",
-    "sea",
-    "dot",
-    "foam",
-    "sun",
-    "fill",
-    "under",
-  ] as const)
-    out[key].copy(from[key]).lerp(to[key], t);
+  for (const key of colorKeys) out[key].copy(from[key]).lerp(to[key], t);
   out.sunAt.copy(from.sunAt).lerp(to.sunAt, t);
   out.sunPower = from.sunPower + (to.sunPower - from.sunPower) * t;
   out.fillPower = from.fillPower + (to.fillPower - from.fillPower) * t;
   out.glow = from.glow + (to.glow - from.glow) * t;
 }
 
-const clonePalette = (p: Palette): Palette => ({
-  ...p,
-  sky: p.sky.clone(),
-  sea: p.sea.clone(),
-  dot: p.dot.clone(),
-  foam: p.foam.clone(),
-  sun: p.sun.clone(),
-  sunAt: p.sunAt.clone(),
-  fill: p.fill.clone(),
-  under: p.under.clone(),
-});
+const clonePalette = (p: Palette): Palette => {
+  const copy = { ...p, sunAt: p.sunAt.clone() };
+  for (const key of colorKeys) copy[key] = p[key].clone();
+  return copy;
+};
 
 // ---------------------------------------------------------------------------
 // Textures drawn on the fly
@@ -297,7 +345,7 @@ function drawn(
   if (g) paint(g);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  return { texture, canvas, repaint: () => g && paint(g) };
+  return { texture, repaint: () => g && paint(g) };
 }
 
 function roundRect(
@@ -317,28 +365,8 @@ function roundRect(
   g.closePath();
 }
 
-function icons({ hex }: Tokens) {
+function textures(hex: Record<keyof Tokens, string>) {
   const ink = hex.ink;
-  // 聽: a speech bubble with "…"
-  const bubble = drawn(128, 128, (g) => {
-    g.clearRect(0, 0, 128, 128);
-    g.lineJoin = "round";
-    roundRect(g, 12, 18, 104, 70, 26);
-    g.moveTo(34, 86);
-    g.lineTo(26, 112);
-    g.lineTo(58, 87);
-    g.fillStyle = hex.yellow;
-    g.strokeStyle = ink;
-    g.lineWidth = 8;
-    g.fill();
-    g.stroke();
-    g.fillStyle = ink;
-    for (const x of [42, 64, 86]) {
-      g.beginPath();
-      g.arc(x, 53, 7, 0, Math.PI * 2);
-      g.fill();
-    }
-  });
   // 寫: </> on a coral tag
   const code = drawn(128, 128, (g) => {
     g.clearRect(0, 0, 128, 128);
@@ -362,7 +390,26 @@ function icons({ hex }: Tokens) {
     g.lineTo(57, 88);
     g.stroke();
   });
-  // A note for the songs on the last-mile road
+  const bubble = drawn(128, 128, (g) => {
+    g.clearRect(0, 0, 128, 128);
+    g.lineJoin = "round";
+    roundRect(g, 12, 18, 104, 70, 26);
+    g.moveTo(34, 86);
+    g.lineTo(26, 112);
+    g.lineTo(58, 87);
+    g.fillStyle = hex.yellow;
+    g.strokeStyle = ink;
+    g.lineWidth = 8;
+    g.fill();
+    g.stroke();
+    g.fillStyle = ink;
+    for (const x of [42, 64, 86]) {
+      g.beginPath();
+      g.arc(x, 53, 7, 0, Math.PI * 2);
+      g.fill();
+    }
+  });
+  // A note for the songs
   const note = drawn(128, 128, (g) => {
     g.clearRect(0, 0, 128, 128);
     g.fillStyle = hex.yellow;
@@ -384,7 +431,19 @@ function icons({ hex }: Tokens) {
     g.fill();
     g.stroke();
   });
-  // A soft round glow for lights at night
+  // A four-pointed spark, the brand star in white
+  const spark = drawn(64, 64, (g) => {
+    g.clearRect(0, 0, 64, 64);
+    g.fillStyle = "#fff";
+    g.beginPath();
+    g.moveTo(32, 2);
+    g.quadraticCurveTo(32, 32, 62, 32);
+    g.quadraticCurveTo(32, 32, 32, 62);
+    g.quadraticCurveTo(32, 32, 2, 32);
+    g.quadraticCurveTo(32, 32, 32, 2);
+    g.fill();
+  });
+  // Soft round glow for lights, and a darker one for shadows under animals
   const glow = drawn(64, 64, (g) => {
     const gradient = g.createRadialGradient(32, 32, 0, 32, 32, 32);
     gradient.addColorStop(0, "rgba(255,255,255,1)");
@@ -393,14 +452,103 @@ function icons({ hex }: Tokens) {
     g.fillStyle = gradient;
     g.fillRect(0, 0, 64, 64);
   });
-  // Route dots
+  const blob = drawn(64, 64, (g) => {
+    const gradient = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, "rgba(255,255,255,0.9)");
+    gradient.addColorStop(0.6, "rgba(255,255,255,0.4)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, 64, 64);
+  });
+  const ring = drawn(64, 64, (g) => {
+    g.clearRect(0, 0, 64, 64);
+    g.strokeStyle = "rgba(255,255,255,1)";
+    g.lineWidth = 5;
+    g.beginPath();
+    g.arc(32, 32, 26, 0, Math.PI * 2);
+    g.stroke();
+  });
   const dot = drawn(32, 32, (g) => {
     g.fillStyle = "#fff";
     g.beginPath();
     g.arc(16, 16, 13, 0, Math.PI * 2);
     g.fill();
   });
-  return { bubble, code, note, glow, dot };
+  // The turtle's shell: hexagonal scutes
+  const scutes = drawn(256, 128, (g) => {
+    g.fillStyle = hex.green;
+    g.fillRect(0, 0, 256, 128);
+    g.fillStyle = "rgba(20,20,20,0.18)";
+    g.fillRect(0, 0, 256, 128);
+    g.strokeStyle = "rgba(255,249,235,0.85)";
+    g.lineWidth = 5;
+    g.lineJoin = "round";
+    for (let row = 0; row < 3; row++)
+      for (let col = 0; col < 6; col++) {
+        const cx = col * 44 + (row % 2) * 22 + 10;
+        const cy = row * 42 + 18;
+        g.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2 + Math.PI / 6;
+          const x = cx + Math.cos(a) * 20;
+          const y = cy + Math.sin(a) * 18;
+          if (k) g.lineTo(x, y);
+          else g.moveTo(x, y);
+        }
+        g.closePath();
+        g.stroke();
+      }
+  });
+  // The laptop: a dark editor with a few lines of code
+  const screen = drawn(128, 80, (g) => {
+    g.fillStyle = "#1c2140";
+    g.fillRect(0, 0, 128, 80);
+    const lines = [
+      [8, hex.coral, 40],
+      [8, hex.sky, 70],
+      [16, hex.yellow, 52],
+      [16, hex.green, 34],
+      [8, hex.sky, 60],
+      [8, hex.coral, 28],
+      [16, hex.white, 66],
+    ] as const;
+    lines.forEach(([x, color, w], k) => {
+      g.fillStyle = color;
+      g.fillRect(x, 8 + k * 9, w, 4);
+    });
+  });
+  // The last mile: five lines and a bar line
+  const staff = drawn(128, 256, (g) => {
+    g.fillStyle = ink;
+    g.fillRect(0, 0, 128, 256);
+    g.fillStyle = hex.paper;
+    for (let k = 0; k < 5; k++) g.fillRect(14 + k * 23, 0, 5, 256);
+    g.fillRect(10, 120, 108, 7);
+  });
+  staff.texture.wrapT = RepeatWrapping;
+  // The visitor's island is a blank page: ruled lines and a margin.
+  const page = drawn(256, 256, (g) => {
+    g.fillStyle = hex.paper;
+    g.fillRect(0, 0, 256, 256);
+    g.fillStyle = hex.sky;
+    for (let k = 1; k < 12; k++) g.fillRect(0, k * 21, 256, 3);
+    g.fillStyle = hex.coral;
+    g.fillRect(60, 0, 3, 256);
+  });
+  return {
+    code,
+    bubble,
+    note,
+    spark,
+    glow,
+    blob,
+    ring,
+    dot,
+    scutes,
+    screen,
+    staff,
+    page,
+  };
 }
 
 // The sea needs to know how far each point is from the nearest coast: draw
@@ -422,7 +570,7 @@ function shoreTexture() {
   g.fillStyle = "#fff";
   g.strokeStyle = "#fff";
   g.lineJoin = "round";
-  g.lineWidth = BEVEL_SIZE * 2 * scale;
+  g.lineWidth = SAND.size * 2 * scale;
   for (const points of Object.values(outlines)) {
     g.beginPath();
     points.forEach(([x, y], index) => {
@@ -436,7 +584,7 @@ function shoreTexture() {
   }
   const [ux, uy] = toPx(youIsland.center[0], youIsland.center[1]);
   g.beginPath();
-  g.arc(ux, uy, (youIsland.radius * S + BEVEL_SIZE) * scale, 0, Math.PI * 2);
+  g.arc(ux, uy, (youIsland.radius * S + SAND.size) * scale, 0, Math.PI * 2);
   g.fill();
   const land = g.getImageData(0, 0, px, px).data;
   const far = px * 4;
@@ -477,22 +625,8 @@ function shoreTexture() {
 }
 
 // ---------------------------------------------------------------------------
-// Materials
+// Shaders
 // ---------------------------------------------------------------------------
-
-function toonRamp() {
-  const ramp = new DataTexture(
-    new Uint8Array([105, 185, 255]),
-    3,
-    1,
-    RedFormat,
-  );
-  ramp.minFilter = NearestFilter;
-  ramp.magFilter = NearestFilter;
-  ramp.generateMipmaps = false;
-  ramp.needsUpdate = true;
-  return ramp;
-}
 
 const outlineVertex = /* glsl */ `
   #include <common>
@@ -536,10 +670,12 @@ const seaVertex = /* glsl */ `
   }
 `;
 
-// Halftone water: a dot screen that swells with slow waves, white foam that
-// rings the coasts and rolls outwards, and the far sea fading into the sky.
+// Halftone water: a dot screen that swells with slow waves, lighter shallows
+// round the coasts, white foam that rings them and rolls outwards, and the
+// far sea fading into the horizon.
 const seaFragment = /* glsl */ `
   uniform vec3 uSea;
+  uniform vec3 uShallow;
   uniform vec3 uDot;
   uniform vec3 uFoam;
   uniform vec3 uSky;
@@ -553,18 +689,51 @@ const seaFragment = /* glsl */ `
     vec2 shoreUv = (p - uShoreRect.xy) / uShoreRect.zw;
     float edge = step(0.0, shoreUv.x) * step(shoreUv.x, 1.0) * step(0.0, shoreUv.y) * step(shoreUv.y, 1.0);
     float d = mix(1.0, texture2D(uShore, clamp(shoreUv, 0.0, 1.0)).r, edge);
+    vec3 base = mix(uShallow, uSea, smoothstep(0.03, 0.42, d));
     vec2 g = mat2(0.7071, -0.7071, 0.7071, 0.7071) * p * 2.4;
     vec2 cell = fract(g) - 0.5;
     float swell = sin(p.x * 0.42 + uTime * 0.7) * sin(p.y * 0.36 - uTime * 0.5);
-    float radius = 0.16 + 0.13 * swell + 0.08 * (1.0 - d);
+    float radius = 0.13 + 0.11 * swell + 0.06 * (1.0 - d);
     float halftone = 1.0 - smoothstep(radius - 0.05, radius + 0.05, length(cell));
-    vec3 color = mix(uSea, uDot, halftone * 0.7);
+    vec3 color = mix(base, uDot, halftone * 0.55);
     float rings = fract(d * 5.5 - uTime * 0.22);
     float foam = (1.0 - smoothstep(0.0, 0.07, rings)) * (1.0 - smoothstep(0.08, 0.55, d));
-    float coast = 1.0 - smoothstep(0.035, 0.06, d);
-    color = mix(color, uFoam, max(foam * 0.85, coast));
+    float coast = 1.0 - smoothstep(0.03, 0.055, d);
+    color = mix(color, uFoam, max(foam * 0.8, coast));
     float far = smoothstep(uFog.x, uFog.y, distance(vWorld, cameraPosition));
     gl_FragColor = vec4(mix(color, uSky, far), 1.0);
+    #include <colorspace_fragment>
+  }
+`;
+
+const skyVertex = /* glsl */ `
+  varying vec3 vDirection;
+  void main() {
+    vDirection = normalize(position);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+// A sky that fades from the horizon to the zenith, with stars at night.
+const skyFragment = /* glsl */ `
+  uniform vec3 uHorizon;
+  uniform vec3 uZenith;
+  uniform float uStars;
+  uniform float uTime;
+  varying vec3 vDirection;
+  float hash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+  void main() {
+    float h = clamp(vDirection.y, 0.0, 1.0);
+    vec3 color = mix(uHorizon, uZenith, smoothstep(0.0, 0.45, h));
+    vec3 cell = floor(vDirection * 180.0);
+    float star = step(0.9965, hash(cell)) * smoothstep(0.04, 0.3, h);
+    star *= 0.6 + 0.4 * sin(uTime * 2.0 + hash(cell + 1.0) * 30.0);
+    color += vec3(star * uStars);
+    gl_FragColor = vec4(color, 1.0);
     #include <colorspace_fragment>
   }
 `;
@@ -582,6 +751,8 @@ export type IslandWorld = {
   light(daypart: Daypart): void;
   // Make one landmark of the focused island hop.
   spot(index: number | null): void;
+  // Fly up close to one landmark of the focused island.
+  look(index: number | null): void;
   destroy(): void;
 };
 
@@ -594,13 +765,14 @@ export type IslandEvents = {
 
 type Pose = { target: Vector3; yaw: number; pitch: number; distance: number };
 
-type Landmark = { group: Group; height: number; tick?(t: number): void };
-
 type Carrier = {
   group: Group;
   curve: CatmullRomCurve3;
   period: number;
   offset: number;
+  shadow: Mesh;
+  size: number;
+  pitch: boolean;
   move(t: number, u: number, previous: number): void;
   last: number;
 };
@@ -635,49 +807,119 @@ export function createIslandWorld(
   }
   let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   renderer.setPixelRatio(pixelRatio);
+  // Shadows only move when the light or the islands do, so the map is
+  // redrawn on demand rather than every frame.
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;
 
   const tokens = readTokens(stage);
-  const c = tokens.color;
-  const looks = palettes(tokens);
+  const c = tones(tokens.color);
+  const looks = palettes(tokens.color);
   let daypart: Daypart = "day";
   const now = clonePalette(looks.day);
   let fade = { from: clonePalette(looks.day), to: looks.day, start: -1 };
 
   const scene = new Scene();
-  scene.fog = new Fog(now.sky, 46, 120);
-  const camera = new PerspectiveCamera(FOV, 1, 0.5, 260);
+  scene.fog = new Fog(now.horizon, 46, 120);
+  const camera = new PerspectiveCamera(FOV, 1, 0.5, 400);
   const hemisphere = new HemisphereLight(now.fill, now.under, now.fillPower);
   const sun = new DirectionalLight(now.sun, now.sunPower);
+  sun.castShadow = true;
+  const small = Math.min(window.innerWidth, window.innerHeight) < 700;
+  sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
+  Object.assign(sun.shadow.camera, {
+    left: -13,
+    right: 13,
+    top: 13,
+    bottom: -13,
+    near: 1,
+    far: 70,
+  });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 0.025;
+  sun.shadow.radius = 3;
+  sun.target.position.set(0, 0, 1.5);
   scene.add(hemisphere, sun, sun.target);
 
-  const ramp = toonRamp();
-  const art = icons(tokens);
+  // --- Materials ------------------------------------------------------------
+  const ramp = new DataTexture(
+    new Uint8Array([92, 158, 214, 255]),
+    4,
+    1,
+    RedFormat,
+  );
+  ramp.minFilter = NearestFilter;
+  ramp.magFilter = NearestFilter;
+  ramp.generateMipmaps = false;
+  ramp.needsUpdate = true;
+  const art = textures(tokens.hex);
   const resolution = { value: new Vector2(1, 1) };
-  const toons = new Map<string, MeshToonMaterial>();
-  const toon = (color: Color) => {
-    const key = color.getHexString();
-    let material = toons.get(key);
+  const paints = new Map<string, MeshToonMaterial>();
+  const paint = (color: Color, glow = 0) => {
+    const key = `${color.getHexString()}-${glow}`;
+    let material = paints.get(key);
     if (!material) {
-      material = new MeshToonMaterial({ color, gradientMap: ramp });
-      toons.set(key, material);
+      material = new MeshToonMaterial({
+        color,
+        gradientMap: ramp,
+        emissive: color.clone().multiplyScalar(glow),
+      });
+      paints.set(key, material);
     }
     return material;
   };
-  const outline = (thickness: number, color = c.ink) =>
-    new ShaderMaterial({
-      uniforms: {
-        ...UniformsUtils.clone(UniformsLib.fog),
-        uColor: { value: color.clone() },
-        uThickness: { value: thickness },
-        uResolution: resolution,
-      },
-      vertexShader: outlineVertex,
-      fragmentShader: outlineFragment,
-      side: BackSide,
-      fog: true,
-    });
-  const ink = { bold: outline(2.4), thin: outline(1.6) };
-
+  // Outlines are a dark shade of the colour family they wrap, not flat
+  // black: warm, green, blue or neutral ink, in three weights.
+  const inks = {
+    warm: mix(c.ink, c.coral, 0.3),
+    green: mix(c.ink, c.green, 0.32),
+    blue: mix(c.ink, c.blue, 0.4),
+    plain: mix(c.ink, c.muted, 0.2),
+  };
+  const hsl = { h: 0, s: 0, l: 0 };
+  const inkFor = (color: Color) => {
+    color.getHSL(hsl);
+    if (hsl.s < 0.18 || hsl.l > 0.9) return inks.plain;
+    if (hsl.h > 0.22 && hsl.h < 0.47) return inks.green;
+    if (hsl.h >= 0.47 && hsl.h < 0.78) return inks.blue;
+    return inks.warm;
+  };
+  const lines = new Map<string, ShaderMaterial>();
+  const outline = (color: Color, weight: number) => {
+    const shade = inkFor(color);
+    const thickness =
+      weight <= 1.15
+        ? 1.1
+        : weight <= 1.45
+          ? 1.35
+          : weight <= 1.9
+            ? 1.7
+            : weight;
+    const key = `${shade.getHexString()}-${thickness}`;
+    let material = lines.get(key);
+    if (!material) {
+      material = new ShaderMaterial({
+        uniforms: {
+          ...UniformsUtils.clone(UniformsLib.fog),
+          uColor: { value: shade },
+          uThickness: { value: thickness },
+          uResolution: resolution,
+        },
+        vertexShader: outlineVertex,
+        fragmentShader: outlineFragment,
+        side: BackSide,
+        fog: true,
+      });
+      lines.set(key, material);
+    }
+    return material;
+  };
+  const colorOf = (material: Material | Material[]) => {
+    const first = Array.isArray(material) ? material[0] : material;
+    return (first as Material & { color?: Color }).color ?? c.ink;
+  };
   const hulls = new WeakMap<BufferGeometry, BufferGeometry>();
   const hull = (geometry: BufferGeometry) => {
     let shell = hulls.get(geometry);
@@ -692,60 +934,122 @@ export function createIslandWorld(
     }
     return shell;
   };
-  // A toon solid with its ink outline.
-  const solid = (
-    geometry: BufferGeometry,
-    material: Material | Material[],
-    line: ShaderMaterial | null = ink.thin,
-  ) => {
-    const mesh = new Mesh(geometry, material);
-    if (line) mesh.add(new Mesh(hull(geometry), line));
-    return mesh;
-  };
-  const put = <T extends Object3D>(
-    parent: Object3D,
-    object: T,
-    x: number,
-    y: number,
-    z: number,
-  ) => {
-    object.position.set(x, y, z);
-    parent.add(object);
-    return object;
-  };
-
-  // Things that light up at night: windows, screens, lamps, the star.
   const lamps: { material: MeshBasicMaterial; day: Color; night: Color }[] = [];
-  const lamp = (day: Color, night: Color) => {
-    const material = new MeshBasicMaterial({ color: day.clone() });
-    lamps.push({ material, day, night });
-    return material;
-  };
   const halos: { sprite: Sprite; day: number; night: number }[] = [];
-  const halo = (color: Color, size: number, day = 0, night = 0.85) => {
-    const sprite = new Sprite(
-      new SpriteMaterial({
-        map: art.glow.texture,
-        color,
-        blending: AdditiveBlending,
-        transparent: true,
-        depthWrite: false,
-        opacity: 0,
-      }),
-    );
-    sprite.scale.setScalar(size);
-    halos.push({ sprite, day, night });
-    return sprite;
+  const pending: (() => void)[] = [];
+  const kit: Kit = {
+    c,
+    hex: tokens.hex,
+    paint,
+    textured(map, color = c.white) {
+      return new MeshToonMaterial({ color, map, gradientMap: ramp });
+    },
+    solid(geometry, material, line = 1.3) {
+      const mesh = new Mesh(geometry, material);
+      if (line) {
+        const shell = new Mesh(
+          hull(geometry),
+          outline(colorOf(material), line),
+        );
+        shell.userData.shell = true;
+        mesh.add(shell);
+      }
+      return mesh;
+    },
+    lamp(day, night) {
+      const material = new MeshBasicMaterial({ color: day.clone() });
+      lamps.push({ material, day, night });
+      return material;
+    },
+    halo(color, size, day = 0, night = 0.85) {
+      const sprite = new Sprite(
+        new SpriteMaterial({
+          map: art.glow.texture,
+          color,
+          blending: AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0,
+        }),
+      );
+      sprite.scale.setScalar(size);
+      halos.push({ sprite, day, night });
+      return sprite;
+    },
+    puff(size) {
+      const sprite = new Sprite(
+        new SpriteMaterial({
+          map: art.blob.texture,
+          color: c.white,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      sprite.scale.setScalar(size);
+      return sprite;
+    },
+    icon(name, size) {
+      const sprite = new Sprite(
+        new SpriteMaterial({
+          map: art[name].texture,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      sprite.scale.setScalar(size);
+      return sprite;
+    },
+    words(text, width, height, ink, paper) {
+      const sign = drawn(width, height, (g) => {
+        g.fillStyle = paper;
+        g.fillRect(0, 0, width, height);
+        g.fillStyle = ink;
+        g.font = `900 ${Math.round(height * 0.62)}px "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillText(text, width / 2, height * 0.54, width * 0.92);
+      });
+      pending.push(() => {
+        sign.repaint();
+        sign.texture.needsUpdate = true;
+      });
+      return sign.texture;
+    },
+    scutes: art.scutes.texture,
+    screen: art.screen.texture,
+    staff: art.staff.texture,
   };
+  document.fonts
+    ?.load('900 40px "Noto Sans TC"')
+    .then(() => {
+      for (const repaint of pending) repaint();
+      wake();
+    })
+    .catch(() => {});
 
-  // --- Sea --------------------------------------------------------------
+  // --- Sky and sea ------------------------------------------------------------
+  const skyMaterial = new ShaderMaterial({
+    uniforms: {
+      uHorizon: { value: now.horizon },
+      uZenith: { value: now.zenith },
+      uStars: { value: 0 },
+      uTime: { value: 0 },
+    },
+    vertexShader: skyVertex,
+    fragmentShader: skyFragment,
+    side: BackSide,
+    depthWrite: false,
+  });
+  const sky = new Mesh(new SphereGeometry(300, 32, 16), skyMaterial);
+  scene.add(sky);
   const shore = shoreTexture();
   const seaMaterial = new ShaderMaterial({
     uniforms: {
       uSea: { value: now.sea },
+      uShallow: { value: now.shallow },
       uDot: { value: now.dot },
       uFoam: { value: now.foam },
-      uSky: { value: now.sky },
+      uSky: { value: now.horizon },
       uTime: { value: 0 },
       uShore: { value: shore },
       uShoreRect: {
@@ -756,28 +1060,38 @@ export function createIslandWorld(
     vertexShader: seaVertex,
     fragmentShader: seaFragment,
   });
-  const sea = new Mesh(new PlaneGeometry(260, 260), seaMaterial);
+  const sea = new Mesh(new PlaneGeometry(400, 400), seaMaterial);
   sea.rotation.x = -Math.PI / 2;
   scene.add(sea);
 
-  // --- Islands ----------------------------------------------------------
+  // --- Islands: a sand beach, an earth cliff and a grass plateau ------------
   const shapeOf = (points: readonly Point[]) =>
     new Shape(points.map(([x, y]) => new Vector2(wx(x), -wz(y))));
-  const land = (shape: Shape) => {
+  const raise = (
+    shape: Shape,
+    options: {
+      depth: number;
+      bevel: number;
+      size: number;
+      offset?: number;
+      lift: number;
+    },
+  ) => {
     const geometry = new ExtrudeGeometry(shape, {
-      depth: DEPTH,
+      depth: options.depth,
       bevelEnabled: true,
-      bevelThickness: BEVEL,
-      bevelSize: BEVEL_SIZE,
-      bevelSegments: 3,
-      curveSegments: 40,
+      bevelThickness: options.bevel,
+      bevelSize: options.size,
+      bevelOffset: options.offset ?? 0,
+      bevelSegments: 4,
+      curveSegments: 48,
     });
     geometry.rotateX(-Math.PI / 2);
-    geometry.translate(0, LIFT, 0);
+    geometry.translate(0, options.lift, 0);
     return geometry;
   };
-  const sand = toon(mix(c.yellowLight, c.yellow, 0.18));
-  const deepGrass = mix(c.green, c.ink, 0.2);
+  const sandPaint = paint(c.sand);
+  const earthPaint = paint(c.earth);
   // The A keeps the logo's two tones: one green on the left half, a lighter
   // one on the right, split down the apex.
   const twoTone = () => {
@@ -785,7 +1099,7 @@ export function createIslandWorld(
       color: c.green,
       gradientMap: ramp,
     });
-    const right = mix(c.green, c.paper, 0.42);
+    const right = mix(c.green, c.paper, 0.4);
     const split = wx(aLeft[0][0]);
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uRight = { value: right };
@@ -810,24 +1124,50 @@ export function createIslandWorld(
     return material;
   };
   const islandRoots = new Map<IslandId, Group>();
-  const islandLines = new Map<IslandId, ShaderMaterial>();
+  const islandLines = new Map<IslandId, ShaderMaterial[]>();
   const pickables: Mesh[] = [];
-  const addIsland = (id: IslandId, shape: Shape, top: Material) => {
+  const addIsland = (id: IslandId, shape: Shape, grass: Material) => {
     const root = new Group();
-    const geometry = land(shape);
-    const line = outline(2.6);
-    const mesh = solid(geometry, [top, sand], line);
-    mesh.userData.island = id;
-    pickables.push(mesh);
-    root.add(mesh);
+    const beach = new Mesh(
+      raise(shape, {
+        depth: SAND.depth,
+        bevel: SAND.bevel,
+        size: SAND.size,
+        lift: SAND.lift,
+      }),
+      sandPaint,
+    );
+    const plateau = new Mesh(
+      raise(shape, {
+        depth: GRASS.depth,
+        bevel: GRASS.bevel,
+        size: GRASS.bevel,
+        offset: -GRASS.inset,
+        lift: BEACH - 0.07,
+      }),
+      [grass, earthPaint],
+    );
+    const beachLine = outline(c.sand, 2).clone();
+    const grassLine = outline(c.leafDeep, 1.8).clone();
+    beachLine.uniforms.uResolution = grassLine.uniforms.uResolution =
+      resolution;
+    beach.add(new Mesh(hull(beach.geometry), beachLine));
+    plateau.add(new Mesh(hull(plateau.geometry), grassLine));
+    for (const mesh of [beach, plateau]) {
+      mesh.receiveShadow = true;
+      mesh.castShadow = true;
+      mesh.userData.island = id;
+      pickables.push(mesh);
+      root.add(mesh);
+    }
     scene.add(root);
     islandRoots.set(id, root);
-    islandLines.set(id, line);
+    islandLines.set(id, [beachLine, grassLine]);
     return root;
   };
-  addIsland("l", shapeOf(outlines.l), toon(deepGrass));
+  addIsland("l", shapeOf(outlines.l), paint(mix(c.green, c.ink, 0.12)));
   addIsland("a", shapeOf(outlines.a), twoTone());
-  addIsland("i", shapeOf(outlines.i), toon(deepGrass));
+  addIsland("i", shapeOf(outlines.i), paint(mix(c.green, c.ink, 0.12)));
   const youShape = new Shape();
   youShape.absarc(
     wx(youIsland.center[0]),
@@ -837,575 +1177,58 @@ export function createIslandWorld(
     Math.PI * 2,
     false,
   );
-  // The visitor's island is a blank page, waiting for its story.
-  addIsland("you", youShape, toon(c.paper));
-
-  // --- Landmarks --------------------------------------------------------
-  const box = (w: number, h: number, d: number) => new BoxGeometry(w, h, d);
-  const cylinder = (top: number, bottom: number, h: number, segments = 20) =>
-    new CylinderGeometry(top, bottom, h, segments);
-  const ball = (r: number, w = 16, h = 12) => new SphereGeometry(r, w, h);
-
-  function database(): Landmark {
-    const group = new Group();
-    const disc = cylinder(0.42, 0.42, 0.17, 28);
-    [c.paper, c.paper, c.yellow].forEach((color, k) =>
-      put(group, solid(disc, toon(color)), 0, 0.09 + k * 0.23, 0),
-    );
-    return { group, height: 0.62 };
-  }
-
-  function javaCafe(): Landmark {
-    const group = new Group();
-    put(
-      group,
-      solid(cylinder(0.52, 0.46, 0.06, 28), toon(c.white)),
-      0,
-      0.03,
-      0,
-    );
-    put(
-      group,
-      solid(cylinder(0.36, 0.28, 0.52, 28), toon(c.coral)),
-      0,
-      0.32,
-      0,
-    );
-    put(
-      group,
-      new Mesh(cylinder(0.32, 0.32, 0.02, 24), toon(mix(c.coral, c.ink, 0.6))),
-      0,
-      0.575,
-      0,
-    );
-    put(
-      group,
-      solid(new TorusGeometry(0.15, 0.05, 10, 20), toon(c.coral)),
-      0.37,
-      0.34,
-      0,
-    );
-    // Steam: Spring Boot is starting, so there is time for coffee.
-    const puff = ball(0.09, 10, 8);
-    const steam = [0, 1, 2].map((k) =>
-      put(group, solid(puff, toon(c.white)), -0.08 + k * 0.08, 0.7, 0),
-    );
-    return {
-      group,
-      height: 0.95,
-      tick(t) {
-        steam.forEach((cloud, k) => {
-          const life = (t * 0.45 + k / 3) % 1;
-          cloud.position.y = 0.66 + life * 0.75;
-          cloud.position.x = -0.08 + k * 0.08 + Math.sin(life * 6 + k) * 0.06;
-          cloud.scale.setScalar(Math.sin(life * Math.PI) * 1.1 + 0.001);
-        });
-      },
-    };
-  }
-
-  function cloudTower(): Landmark {
-    const group = new Group();
-    put(group, solid(cylinder(0.13, 0.2, 1.3, 16), toon(c.white)), 0, 0.65, 0);
-    put(group, solid(cylinder(0.27, 0.27, 0.07, 18), toon(c.sky)), 0, 1.0, 0);
-    const fluff = [
-      [0, 1.56, 0, 0.33],
-      [-0.31, 1.46, 0.02, 0.23],
-      [0.32, 1.47, 0.04, 0.25],
-      [0.06, 1.66, -0.12, 0.24],
-    ] as const;
-    for (const [x, y, z, r] of fluff)
-      put(group, solid(ball(r), toon(c.white)), x, y, z);
-    const light = put(
-      group,
-      new Mesh(ball(0.06, 10, 8), lamp(c.coral, c.yellow)),
-      0,
-      1.93,
-      0,
-    );
-    put(group, halo(c.yellow, 0.7, 0.15, 0.9), 0, 1.93, 0);
-    return {
-      group,
-      height: 2.0,
-      tick(t) {
-        light.scale.setScalar(Math.sin(t * 3) > 0.3 ? 1.25 : 0.85);
-      },
-    };
-  }
-
-  function stackTower(): Landmark {
-    const group = new Group();
-    put(group, solid(box(0.92, 0.12, 0.92), toon(c.ink)), 0, 0.06, 0);
-    const colors = [c.yellow, c.coral, c.green, c.sky, c.white, c.yellow];
-    const tower = put(group, new Group(), 0, 0.12, 0);
-    colors.forEach((color, k) => {
-      const w = 0.8 - k * 0.045;
-      put(
-        tower,
-        solid(box(w, 0.16, w), toon(color)),
-        (k % 2 ? 1 : -1) * 0.035,
-        0.08 + k * 0.165,
-        ((k % 3) - 1) * 0.02,
-      );
-    });
-    return {
-      group,
-      height: 1.25,
-      tick(t) {
-        tower.rotation.z = Math.sin(t * 1.3) * 0.035;
-        tower.rotation.x = Math.sin(t * 1.1 + 1) * 0.025;
-      },
-    };
-  }
-
-  // The brand's four-pointed star, flat in the A like the logo, with a
-  // smaller one floating above it: the AI core.
-  const starShape = (radius: number) => {
-    const shape = new Shape();
-    shape.moveTo(0, radius);
-    shape.quadraticCurveTo(0, 0, radius, 0);
-    shape.quadraticCurveTo(0, 0, 0, -radius);
-    shape.quadraticCurveTo(0, 0, -radius, 0);
-    shape.quadraticCurveTo(0, 0, 0, radius);
-    return shape;
-  };
-  let starPulse = -10;
-  function aiStar(): Landmark {
-    const group = new Group();
-    const amber = new MeshToonMaterial({
-      color: c.amber,
-      gradientMap: ramp,
-      emissive: c.amber,
-      emissiveIntensity: 0.35,
-    });
-    const inlay = new ExtrudeGeometry(starShape(starRadius * S), {
-      depth: 0.05,
-      bevelEnabled: false,
-      curveSegments: 16,
-    });
-    inlay.rotateX(-Math.PI / 2);
-    put(group, solid(inlay, amber, ink.bold), 0, 0.005, 0);
-    const charm = new ExtrudeGeometry(starShape(0.5), {
-      depth: 0.12,
-      bevelEnabled: true,
-      bevelThickness: 0.03,
-      bevelSize: 0.03,
-      bevelSegments: 2,
-      curveSegments: 14,
-    });
-    charm.translate(0, 0, -0.06);
-    charm.rotateX(-0.75);
-    const floating = put(group, solid(charm, amber, ink.bold), 0, 1.45, 0);
-    const glow = put(group, halo(c.amber, 2.2, 0.35, 1), 0, 1.45, 0);
-    return {
-      group,
-      height: 1.7,
-      tick(t) {
-        const kick = Math.max(0, 1 - (t - starPulse) / 0.9);
-        floating.rotation.y = t * 0.8 + kick * 4;
-        floating.position.y = 1.45 + Math.sin(t * 1.6) * 0.1 + kick * 0.25;
-        floating.scale.setScalar(1 + kick * 0.45);
-        glow.scale.setScalar(2.2 + kick * 2.4);
-      },
-    };
-  }
-
-  function familyHome(): Landmark {
-    const group = new Group();
-    put(group, solid(box(0.64, 0.42, 0.54), toon(c.paper)), 0, 0.21, 0);
-    const roofShape = new Shape([
-      new Vector2(-0.4, 0),
-      new Vector2(0.4, 0),
-      new Vector2(0, 0.32),
-    ]);
-    const roof = new ExtrudeGeometry(roofShape, {
-      depth: 0.62,
-      bevelEnabled: false,
-    });
-    roof.translate(0, 0, -0.31);
-    put(group, solid(roof, toon(c.coral)), 0, 0.42, 0);
-    put(group, solid(box(0.08, 0.2, 0.08), toon(c.coral)), 0.2, 0.62, -0.08);
-    put(group, new Mesh(box(0.14, 0.22, 0.02), toon(c.ink)), -0.12, 0.11, 0.28);
-    put(
-      group,
-      new Mesh(box(0.15, 0.13, 0.02), lamp(c.sky, c.yellow)),
-      0.15,
-      0.25,
-      0.28,
-    );
-    put(group, halo(c.yellow, 0.6), 0.15, 0.25, 0.34);
-    return { group, height: 0.82 };
-  }
-
-  function careBot(): Landmark {
-    const group = new Group();
-    put(group, solid(box(0.58, 0.38, 0.5), toon(c.white)), 0, 0.19, 0);
-    const head = put(group, new Group(), 0, 0.56, 0);
-    put(head, solid(box(0.44, 0.3, 0.34), toon(c.sky)), 0, 0, 0);
-    for (const x of [-0.1, 0.1])
-      put(head, new Mesh(ball(0.045, 10, 8), toon(c.ink)), x, 0.03, 0.17);
-    put(head, new Mesh(box(0.12, 0.025, 0.02), toon(c.ink)), 0, -0.07, 0.172);
-    put(
-      head,
-      solid(cylinder(0.015, 0.015, 0.16, 8), toon(c.ink), null),
-      0,
-      0.23,
-      0,
-    );
-    const bulb = put(
-      head,
-      new Mesh(ball(0.05, 10, 8), lamp(c.yellow, c.yellow)),
-      0,
-      0.33,
-      0,
-    );
-    put(head, halo(c.yellow, 0.5, 0.1, 0.8), 0, 0.33, 0);
-    return {
-      group,
-      height: 1.0,
-      tick(t) {
-        head.rotation.y = Math.sin(t * 0.9) * 0.35;
-        bulb.scale.setScalar(1 + Math.max(0, Math.sin(t * 4)) * 0.3);
-      },
-    };
-  }
-
-  // Three lights for the three steps of an LLM evaluation, lit in turn.
-  function testLab(): Landmark {
-    const group = new Group();
-    put(group, solid(box(0.9, 0.32, 0.46), toon(c.paper)), 0, 0.16, 0);
-    const steps = [c.yellow, c.coral, c.green].map((color, k) => {
-      const material = new MeshBasicMaterial({
-        color: mix(color, c.ink, 0.55),
-      });
-      put(group, solid(ball(0.1, 12, 10), material), -0.27 + k * 0.27, 0.42, 0);
-      return { material, on: color, off: mix(color, c.ink, 0.55) };
-    });
-    return {
-      group,
-      height: 0.62,
-      tick(t) {
-        const step = t === 0 ? 3 : Math.floor(t / 0.8) % 4;
-        steps.forEach((light, k) =>
-          light.material.color.copy(k < step ? light.on : light.off),
-        );
-      },
-    };
-  }
-
-  // The lion at his desk: the homepage's own lion head, as a standee.
-  const base = import.meta.env.BASE_URL;
-  const lionFace = new TextureLoader().load(
-    `${base}images/lion/head.webp`,
-    () => wake(),
+  // The visitor's island is a blank page, ruled and waiting for its story.
+  art.page.texture.wrapS = RepeatWrapping;
+  art.page.texture.wrapT = RepeatWrapping;
+  art.page.texture.repeat.set(0.42, 0.42);
+  art.page.texture.offset.set(
+    -wx(youIsland.center[0]) * 0.42 + 0.5,
+    wz(youIsland.center[1]) * 0.42 + 0.5,
   );
-  lionFace.colorSpace = SRGBColorSpace;
-  lionFace.repeat.set(1, 0.84); // crop the stray body pixels under the chin
-  lionFace.offset.set(0, 0.16);
-  const lionSprite = (size: number) => {
-    const sprite = new Sprite(
-      new SpriteMaterial({ map: lionFace, transparent: true }),
-    );
-    sprite.scale.set(size * (303 / (384 * 0.84)), size, 1);
-    return sprite;
+  addIsland("you", youShape, kit.textured(art.page.texture, c.white));
+
+  // --- Landmarks ---------------------------------------------------------------
+  type Placed = { island: IslandId; model: Model; at: Vector3 };
+  let star: ReturnType<typeof aiStar> | null = null;
+  const builders: Record<IslandId, (() => Model)[]> = {
+    l: [
+      () => database(kit),
+      () => javaCafe(kit),
+      () => cloudTower(kit),
+      () => stackTower(kit),
+    ],
+    a: [
+      () => (star = aiStar(kit, starRadius * S)),
+      () => familyHome(kit),
+      () => careBot(kit),
+      () => testLab(kit),
+    ],
+    i: [
+      () => lionDesk(kit),
+      () => recordPlayer(kit),
+      () => toolShop(kit),
+      () => staffRoad(kit, TOP),
+    ],
+    you: [() => storySign(kit)],
   };
-
-  function lionDesk(): Landmark {
-    const group = new Group();
-    const wood = toon(mix(c.coral, c.yellow, 0.45));
-    put(group, solid(box(0.96, 0.06, 0.52), wood), 0, 0.42, 0);
-    for (const [x, z] of [
-      [-0.42, -0.2],
-      [0.42, -0.2],
-      [-0.42, 0.2],
-      [0.42, 0.2],
-    ])
-      put(group, new Mesh(box(0.05, 0.4, 0.05), toon(c.ink)), x, 0.2, z);
-    put(group, solid(box(0.38, 0.025, 0.26), toon(c.muted)), -0.08, 0.46, 0.05);
-    const screen = put(
-      group,
-      solid(box(0.38, 0.25, 0.025), toon(c.muted)),
-      -0.08,
-      0.59,
-      -0.08,
-    );
-    screen.rotation.x = -0.25;
-    put(
-      screen,
-      new Mesh(
-        new PlaneGeometry(0.33, 0.2),
-        lamp(c.sky, mix(c.sky, c.white, 0.4)),
-      ),
-      0,
-      0,
-      0.014,
-    );
-    put(
-      group,
-      new Mesh(cylinder(0.06, 0.08, 0.03, 12), toon(c.ink)),
-      0.34,
-      0.46,
-      -0.1,
-    );
-    put(
-      group,
-      new Mesh(cylinder(0.012, 0.012, 0.34, 6), toon(c.ink)),
-      0.34,
-      0.62,
-      -0.1,
-    );
-    const shade = new ConeGeometry(0.12, 0.12, 14, 1, true);
-    put(group, solid(shade, toon(c.yellow)), 0.3, 0.8, -0.06);
-    put(
-      group,
-      new Mesh(ball(0.04, 8, 6), lamp(c.yellowLight, c.yellow)),
-      0.3,
-      0.75,
-      -0.06,
-    );
-    put(group, halo(c.yellow, 0.9, 0.05, 0.95), 0.3, 0.72, -0.06);
-    const lion = put(group, lionSprite(0.78), -0.02, 1.02, -0.3);
-    return {
-      group,
-      height: 1.45,
-      tick(t) {
-        lion.position.y = 1.02 + Math.abs(Math.sin(t * 2.4)) * 0.04;
-        lion.material.rotation = Math.sin(t * 1.2) * 0.06;
-      },
-    };
-  }
-
-  function recordShop(): Landmark {
-    const group = new Group();
-    put(group, solid(box(1.0, 0.22, 0.8), toon(c.coral)), 0, 0.11, 0);
-    const platter = cylinder(0.34, 0.34, 0.05, 40);
-    const disc = put(group, new Group(), -0.1, 0.25, 0);
-    put(disc, solid(platter, toon(c.ink), ink.bold), 0, 0, 0);
-    put(
-      disc,
-      new Mesh(cylinder(0.12, 0.12, 0.06, 24), toon(c.yellow)),
-      0,
-      0.005,
-      0,
-    );
-    put(disc, new Mesh(ball(0.03, 8, 6), toon(c.coral)), 0.07, 0.035, 0.02);
-    const arm = put(group, new Group(), 0.36, 0.26, -0.26);
-    put(arm, new Mesh(cylinder(0.05, 0.05, 0.05, 12), toon(c.white)), 0, 0, 0);
-    const rod = put(
-      arm,
-      new Mesh(box(0.035, 0.03, 0.42), toon(c.white)),
-      -0.08,
-      0.04,
-      0.18,
-    );
-    rod.rotation.y = 0.45;
-    const floaters = [0, 1, 2].map(() => {
-      const sprite = new Sprite(
-        new SpriteMaterial({
-          map: art.note.texture,
-          transparent: true,
-          depthWrite: false,
-        }),
-      );
-      sprite.scale.setScalar(0.34);
-      return put(group, sprite, 0, 0.5, 0);
-    });
-    return {
-      group,
-      height: 0.75,
-      tick(t) {
-        disc.rotation.y = -t * 2.2;
-        floaters.forEach((sprite, k) => {
-          const life = (t * 0.3 + k / 3) % 1;
-          sprite.position.set(
-            -0.1 + Math.sin(life * 5 + k * 2) * 0.22,
-            0.45 + life * 1.1,
-            0,
-          );
-          sprite.material.opacity =
-            t === 0 ? (k ? 0 : 1) : Math.sin(life * Math.PI);
-        });
-      },
-    };
-  }
-
-  function toolShop(): Landmark {
-    const group = new Group();
-    put(group, solid(box(0.82, 0.44, 0.52), toon(c.paper)), 0, 0.22, 0);
-    const stripes = new Group();
-    for (let k = 0; k < 6; k++)
-      put(
-        stripes,
-        new Mesh(box(0.15, 0.025, 0.3), toon(k % 2 ? c.white : c.coral)),
-        -0.375 + k * 0.15,
-        0,
-        0,
-      );
-    stripes.rotation.x = 0.45;
-    put(group, stripes, 0, 0.42, 0.36);
-    put(group, solid(box(0.54, 0.15, 0.04), toon(c.yellow)), 0, 0.6, 0.27);
-    put(
-      group,
-      new Mesh(box(0.3, 0.16, 0.02), lamp(c.sky, c.yellow)),
-      0.12,
-      0.18,
-      0.27,
-    );
-    put(group, halo(c.yellow, 0.7), 0.12, 0.2, 0.33);
-    return { group, height: 0.85 };
-  }
-
-  // The last mile: a five-line staff road leaving the I's north tip for the
-  // horizon, with written songs drifting along it.
-  function staffRoad(): Landmark {
-    const group = new Group();
-    const length = 36;
-    const road = drawn(128, 256, (g) => {
-      g.fillStyle = tokens.hex.ink;
-      g.fillRect(0, 0, 128, 256);
-      g.fillStyle = tokens.hex.paper;
-      for (let k = 0; k < 5; k++) g.fillRect(14 + k * 23, 0, 5, 256);
-      g.fillRect(10, 120, 108, 7);
-    });
-    road.texture.wrapT = RepeatWrapping;
-    road.texture.repeat.set(1, length / 2.6);
-    const strip = new Mesh(
-      new PlaneGeometry(1.15, length),
-      toon(c.white).clone(),
-    );
-    (strip.material as MeshToonMaterial).map = road.texture;
-    strip.rotation.x = -Math.PI / 2;
-    put(group, strip, 0, -TOP + 0.04, -length / 2 - 0.25);
-    const songs = Array.from({ length: 7 }, () => {
-      const sprite = new Sprite(
-        new SpriteMaterial({
-          map: art.note.texture,
-          transparent: true,
-          depthWrite: false,
-        }),
-      );
-      sprite.scale.setScalar(0.42);
-      return put(group, sprite, 0, 0, 0);
-    });
-    return {
-      group,
-      height: 0.35,
-      tick(t) {
-        songs.forEach((sprite, k) => {
-          const along = ((t * 0.09 + k / songs.length) % 1) * length;
-          sprite.position.set(
-            Math.sin(along * 0.9 + k) * 0.22,
-            -TOP + 0.38 + Math.sin(t * 2 + k) * 0.06,
-            -0.5 - along,
-          );
-          sprite.material.opacity =
-            Math.min(1, along / 1.5) * (1 - along / length);
-        });
-      },
-    };
-  }
-
-  function storySign(): Landmark {
-    const group = new Group();
-    put(
-      group,
-      new Mesh(cylinder(0.035, 0.035, 0.9, 8), toon(c.ink)),
-      0,
-      0.45,
-      0,
-    );
-    put(group, solid(box(0.98, 0.38, 0.05), toon(c.white)), 0, 0.86, 0);
-    const words = drawn(256, 96, (g) => {
-      g.fillStyle = tokens.hex.white;
-      g.fillRect(0, 0, 256, 96);
-      g.fillStyle = tokens.hex.ink;
-      g.font = '900 52px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
-      g.textAlign = "center";
-      g.textBaseline = "middle";
-      g.fillText("你的故事", 128, 52);
-    });
-    document.fonts
-      ?.load('900 52px "Noto Sans TC"')
-      .then(() => {
-        words.repaint();
-        words.texture.needsUpdate = true;
-        wake();
-      })
-      .catch(() => {});
-    put(
-      group,
-      new Mesh(
-        new PlaneGeometry(0.9, 0.34),
-        new MeshBasicMaterial({ map: words.texture }),
-      ),
-      0,
-      0.86,
-      0.03,
-    );
-    // Docks on both sides, where the magpies take off and the turtles land.
-    for (const side of [-1, 1])
-      put(
-        group,
-        solid(box(0.6, 0.05, 0.26), toon(mix(c.coral, c.yellow, 0.45))),
-        side * 1.45,
-        -0.38,
-        0.1,
-      );
-    const host = put(group, lionSprite(0.55), 0.62, 0.42, 0.2);
-    return {
-      group,
-      height: 1.15,
-      tick(t) {
-        host.material.rotation = Math.sin(t * 5) * 0.18;
-      },
-    };
-  }
-
-  const builders: Record<IslandId, (() => Landmark)[]> = {
-    l: [database, javaCafe, cloudTower, stackTower],
-    a: [aiStar, familyHome, careBot, testLab],
-    i: [lionDesk, recordShop, toolShop, staffRoad],
-    you: [storySign],
-  };
-  const landmarks: { island: IslandId; mark: Landmark; at: Vector3 }[] = [];
+  const landmarks: Placed[] = [];
   for (const island of islands) {
     const root = islandRoots.get(island.id);
     if (!root) continue;
     island.spots.forEach((spot, index) => {
       const build = builders[island.id][index];
       if (!build) return;
-      const mark = build();
+      const model = build();
       const at = ground(spot.at[0], spot.at[1]);
-      mark.group.position.copy(at);
-      root.add(mark.group);
-      landmarks.push({ island: island.id, mark, at });
+      model.group.position.copy(at);
+      root.add(model.group);
+      landmarks.push({ island: island.id, model, at });
     });
   }
+  // The road to the horizon starts at the I's north tip, so it turns to face
+  // north (the model's road runs towards -z already).
 
-  // --- Bridges (REST API between the islands) --------------------------
-  const bridge = (from: Point, to: Point, rise: number) => {
-    const a = ground(from[0], from[1], TOP + 0.02);
-    const b = ground(to[0], to[1], TOP + 0.02);
-    const count = Math.max(4, Math.round(a.distanceTo(b) / 0.19));
-    const planks: BufferGeometry[] = [];
-    for (let k = 0; k <= count; k++) {
-      const u = k / count;
-      const plank = box(0.17, 0.05, 0.5);
-      plank.rotateZ(Math.cos(u * Math.PI) * rise * 1.6 * (b.x > a.x ? 1 : -1));
-      const p = a.clone().lerp(b, u);
-      plank.translate(p.x, p.y + Math.sin(u * Math.PI) * rise, p.z);
-      planks.push(plank);
-    }
-    const deck = mergeGeometries(planks);
-    if (deck) scene.add(solid(deck, toon(mix(c.coral, c.yellow, 0.45))));
-  };
-  bridge([71, 152], [84, 152], 0.2);
-  bridge([155, 152], [176, 152], 0.38);
-
-  // --- Trees ------------------------------------------------------------
-  const keepClear: Point[] = [
-    ...islands.flatMap((island) => island.spots.map((spot) => spot.at)),
-  ];
+  // --- Paths, bridges, docks, lamps -----------------------------------------
   const lionPath: [number, number, number?][] = [
     [189, 160],
     [183, 152],
@@ -1428,26 +1251,251 @@ export function createIslandWorld(
     [36, 124],
     [35, 116],
   ];
-  const treeSpots: { x: number; z: number; kind: number; scale: number }[] = [];
+  const curveOf = (points: [number, number, number?][], y: number) =>
+    new CatmullRomCurve3(
+      points.map(([lx, ly, h]) => ground(lx, ly, h ?? y)),
+      false,
+      "centripetal",
+    );
+  const walkPath = curveOf(lionPath, TOP);
+  const pathPaint = paint(mix(c.sand, c.coral, 0.1));
+  // A sandy footpath along the cubs' route, wherever it crosses land.
+  {
+    const samples = walkPath.getSpacedPoints(260);
+    const strips: number[][] = [];
+    let strip: number[] = [];
+    samples.forEach((p, k) => {
+      const onLand = groundAt(p.x, p.z) === TOP && p.y < TOP + 0.05;
+      if (!onLand) {
+        if (strip.length > 12) strips.push(strip);
+        strip = [];
+        return;
+      }
+      const next = samples[Math.min(k + 1, samples.length - 1)];
+      const prev = samples[Math.max(k - 1, 0)];
+      const dx = next.x - prev.x;
+      const dz = next.z - prev.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const nx = (-dz / len) * 0.13;
+      const nz = (dx / len) * 0.13;
+      strip.push(
+        p.x + nx,
+        TOP + 0.012,
+        p.z + nz,
+        p.x - nx,
+        TOP + 0.012,
+        p.z - nz,
+      );
+    });
+    if (strip.length > 12) strips.push(strip);
+    for (const points of strips) {
+      const positions: number[] = [];
+      for (let k = 0; k + 11 < points.length; k += 6) {
+        const [ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz] = points.slice(
+          k,
+          k + 12,
+        );
+        positions.push(
+          ax,
+          ay,
+          az,
+          cx,
+          cy,
+          cz,
+          bx,
+          by,
+          bz,
+          bx,
+          by,
+          bz,
+          cx,
+          cy,
+          cz,
+          dx,
+          dy,
+          dz,
+        );
+      }
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new Float32BufferAttribute(positions, 3),
+      );
+      geometry.computeVertexNormals();
+      const mesh = new Mesh(geometry, pathPaint);
+      mesh.receiveShadow = true;
+      const first = new Vector3(points[0], 0, points[2]);
+      const owner = nearestIsland(first);
+      islandRoots.get(owner)?.add(mesh);
+    }
+  }
+  function nearestIsland(p: Vector3): IslandId {
+    const lx = p.x / S + ORIGIN[0];
+    const ly = p.z / S + ORIGIN[1];
+    let best: IslandId = "you";
+    let bestD = Infinity;
+    for (const [id, points] of Object.entries(outlines) as [
+      "l" | "a" | "i",
+      Point[],
+    ][]) {
+      const d = inside(points, lx, ly) ? -1 : edgeDistance(points, lx, ly);
+      if (d < bestD) {
+        bestD = d;
+        best = id;
+      }
+    }
+    return best;
+  }
+
+  const wood = paint(c.wood);
+  const woodDark = paint(c.woodDark);
+  const bridge = (from: Point, to: Point, rise: number) => {
+    const a = ground(from[0], from[1], TOP + 0.02);
+    const b = ground(to[0], to[1], TOP + 0.02);
+    const span = a.distanceTo(b);
+    const count = Math.max(4, Math.round(span / 0.17));
+    const planks: BufferGeometry[] = [];
+    const posts: BufferGeometry[] = [];
+    const rail = (side: number) => {
+      const points: Vector3[] = [];
+      for (let k = 0; k <= 16; k++) {
+        const u = k / 16;
+        const p = a.clone().lerp(b, u);
+        points.push(
+          new Vector3(
+            p.x,
+            p.y + Math.sin(u * Math.PI) * rise + 0.2,
+            p.z + side * 0.24,
+          ),
+        );
+      }
+      return new CatmullRomCurve3(points);
+    };
+    for (let k = 0; k <= count; k++) {
+      const u = k / count;
+      const plank = rounded(0.15, 0.045, 0.52, 0.015);
+      plank.rotateZ(Math.cos(u * Math.PI) * rise * 1.6 * (b.x > a.x ? 1 : -1));
+      const p = a.clone().lerp(b, u);
+      plank.translate(p.x, p.y + Math.sin(u * Math.PI) * rise, p.z);
+      planks.push(plank);
+    }
+    for (const u of [0, 0.5, 1])
+      for (const side of [-1, 1]) {
+        const p = a.clone().lerp(b, u);
+        posts.push(
+          rounded(0.05, 0.26, 0.05, 0.015).translate(
+            p.x,
+            p.y + Math.sin(u * Math.PI) * rise + 0.1,
+            p.z + side * 0.24,
+          ),
+        );
+      }
+    const deck = mergeGeometries(planks.map(flat));
+    if (deck) {
+      const mesh = kit.solid(deck, wood, 1.2);
+      mesh.castShadow = mesh.receiveShadow = true;
+      bridges.add(mesh);
+    }
+    const stakes = mergeGeometries(posts.map(flat));
+    if (stakes) bridges.add(kit.solid(stakes, woodDark, 1));
+    for (const side of [-1, 1])
+      bridges.add(
+        new Mesh(new TubeGeometry(rail(side), 24, 0.014, 6), woodDark),
+      );
+  };
+  // Bridges span two islands, so they rise with the lowest of them.
+  const bridges = new Group();
+  scene.add(bridges);
+  bridge([71, 152], [84, 152], 0.2);
+  bridge([155, 152], [176, 152], 0.38);
+
+  // Docks on the visitor's island, where the magpies leave and turtles land.
+  for (const side of [-1, 1]) {
+    const [cx, cy] = youIsland.center;
+    const dock = new Group();
+    const x = wx(cx) + side * (youIsland.radius * S + 0.15);
+    put(
+      dock,
+      kit.solid(rounded(0.7, 0.05, 0.3, 0.015), wood, 1.2),
+      side * 0.2,
+      BEACH + 0.04,
+      0,
+    );
+    for (const dx of [0.05, 0.45])
+      for (const dz of [-0.13, 0.13])
+        put(
+          dock,
+          kit.solid(rounded(0.05, 0.4, 0.05, 0.015), woodDark, 1),
+          side * dx,
+          0.02,
+          dz,
+        );
+    dock.position.set(x, 0, wz(cy) + 0.1);
+    islandRoots.get("you")?.add(dock);
+  }
+
+  // Lamp posts along the footpath, lit at night.
+  const lampLight = kit.lamp(c.steel, c.yellow);
+  for (const [lx, ly] of [
+    [42, 132],
+    [58, 147],
+    [104, 128],
+    [131, 118],
+    [186, 150],
+  ] as const) {
+    const at = ground(lx, ly);
+    const post = new Group();
+    put(
+      post,
+      kit.solid(rounded(0.04, 0.6, 0.04, 0.012), paint(c.ink), 1),
+      0,
+      0.3,
+      0,
+    );
+    put(
+      post,
+      kit.solid(rounded(0.12, 0.05, 0.12, 0.02), paint(c.ink), 1),
+      0,
+      0.62,
+      0,
+    );
+    put(post, new Mesh(ball(0.045, 10, 8), lampLight), 0, 0.57, 0);
+    put(post, kit.halo(c.yellow, 0.9, 0, 0.85), 0, 0.55, 0);
+    post.position.copy(at);
+    islandRoots.get(nearestIsland(at))?.add(post);
+  }
+
+  // --- Trees, flowers and rocks -------------------------------------------------
+  const keepClear: Point[] = islands.flatMap((island) =>
+    island.spots.map((spot) => spot.at),
+  );
+  type Plant = {
+    x: number;
+    z: number;
+    y: number;
+    kind: number;
+    scale: number;
+    turn: number;
+    island: IslandId;
+  };
+  const plants: Plant[] = [];
   const roll = random(20261024);
   for (const [id, points] of Object.entries(outlines) as [
     "l" | "a" | "i",
     Point[],
   ][]) {
-    for (let y = 30; y <= 170; y += 7)
-      for (let x = 14; x <= 210; x += 7) {
-        const jx = x + (roll() - 0.5) * 5;
-        const jy = y + (roll() - 0.5) * 5;
-        if (!inside(points, jx, jy) || edgeDistance(points, jx, jy) < 3.2)
-          continue;
+    for (let y = 30; y <= 172; y += 6.5)
+      for (let x = 14; x <= 210; x += 6.5) {
+        const jx = x + (roll() - 0.5) * 4.5;
+        const jy = y + (roll() - 0.5) * 4.5;
+        if (!inside(points, jx, jy)) continue;
+        const depth = edgeDistance(points, jx, jy) * S;
+        const clearance = id === "a" ? 12.5 : 10;
         if (
-          keepClear.some(
-            ([sx, sy]) =>
-              Math.hypot(sx - jx, sy - jy) < (id === "a" ? 13 : 10.5),
-          )
+          keepClear.some(([sx, sy]) => Math.hypot(sx - jx, sy - jy) < clearance)
         )
           continue;
-        if (lionPath.some(([px, py]) => Math.hypot(px - jx, py - jy) < 4.5))
+        if (lionPath.some(([px, py]) => Math.hypot(px - jx, py - jy) < 4.2))
           continue;
         if (
           id === "a" &&
@@ -1458,50 +1506,174 @@ export function createIslandWorld(
             starRadius + 4
         )
           continue;
-        if (roll() > 0.42) continue;
-        treeSpots.push({
-          x: wx(jx),
-          z: wz(jy),
-          kind: roll() < 0.55 ? 0 : 1,
-          scale: 0.75 + roll() * 0.5,
-        });
+        if (depth > GRASS.inset + 0.18) {
+          if (roll() > 0.5) continue;
+          plants.push({
+            x: wx(jx),
+            z: wz(jy),
+            y: TOP,
+            kind: roll() < 0.6 ? 0 : 1,
+            scale: 0.72 + roll() * 0.5,
+            turn: roll() * 6.28,
+            island: id,
+          });
+        } else if (
+          depth > 0.08 &&
+          depth < GRASS.inset - 0.12 &&
+          roll() < 0.12
+        ) {
+          plants.push({
+            x: wx(jx),
+            z: wz(jy),
+            y: BEACH,
+            kind: 2,
+            scale: 0.8 + roll() * 0.4,
+            turn: roll() * 6.28,
+            island: id,
+          });
+        }
       }
   }
-  const crown = ball(0.21, 12, 10);
-  const pine = new ConeGeometry(0.19, 0.5, 9);
-  const trunk = cylinder(0.035, 0.045, 0.22, 6);
-  const leaf = [
-    toon(mix(c.green, c.ink, 0.32)),
-    toon(mix(c.green, c.yellow, 0.25)),
-  ];
+  // A few palms on the visitor's island, too.
+  for (const a of [2.4, 4.1]) {
+    const [cx, cy] = youIsland.center;
+    const r = youIsland.radius * S - 0.12;
+    plants.push({
+      x: wx(cx) + Math.cos(a) * r,
+      z: wz(cy) + Math.sin(a) * r,
+      y: BEACH,
+      kind: 2,
+      scale: 0.85,
+      turn: a,
+      island: "you",
+    });
+  }
+  const shapes = flora();
+  const leafDeep = paint(c.leafDeep);
+  const leaf = paint(c.leaf);
+  const leafLight = paint(c.leafLight);
+  const bark = paint(c.woodDark);
+  // Every instanced set is redrawn each frame from its island's height, so
+  // plants rise out of the sea with their island and lean in the breeze.
+  const plantSets: { meshes: InstancedMesh[]; list: Plant[]; sway: boolean }[] =
+    [];
   const forest = (
     geometry: BufferGeometry,
     material: Material,
-    list: typeof treeSpots,
-    lift: number,
+    list: Plant[],
+    sway: boolean,
+    line: number | null = 1.2,
   ) => {
+    if (!list.length) return;
     const body = new InstancedMesh(geometry, material, list.length);
-    const shell = new InstancedMesh(hull(geometry), ink.thin, list.length);
-    const matrix = new Matrix4();
-    list.forEach((tree, k) => {
-      matrix.compose(
-        new Vector3(tree.x, TOP + lift * tree.scale, tree.z),
-        new Quaternion(),
-        new Vector3(tree.scale, tree.scale, tree.scale),
+    body.castShadow = true;
+    body.receiveShadow = true;
+    const meshes = [body];
+    if (line)
+      meshes.push(
+        new InstancedMesh(
+          hull(geometry),
+          outline(colorOf(material), line),
+          list.length,
+        ),
       );
-      body.setMatrixAt(k, matrix);
-      shell.setMatrixAt(k, matrix);
-    });
-    scene.add(body, shell);
+    scene.add(...meshes);
+    plantSets.push({ meshes, list, sway });
   };
-  const rounds = treeSpots.filter((tree) => tree.kind === 0);
-  const pines = treeSpots.filter((tree) => tree.kind === 1);
-  forest(crown, leaf[1], rounds, 0.36);
-  forest(pine, leaf[0], pines, 0.33);
-  forest(trunk, toon(mix(c.coral, c.ink, 0.45)), treeSpots, 0.11);
+  const rounds = plants.filter((p) => p.kind === 0);
+  const pines = plants.filter((p) => p.kind === 1);
+  const palms = plants.filter((p) => p.kind === 2);
+  const merged = (parts: BufferGeometry[]) =>
+    mergeGeometries(parts.map(flat)) ?? parts[0];
+  forest(
+    merged(shapes.round),
+    leaf,
+    rounds.filter((_, k) => k % 3),
+    true,
+  );
+  forest(
+    merged(shapes.round),
+    leafLight,
+    rounds.filter((_, k) => !(k % 3)),
+    true,
+  );
+  forest(merged(shapes.pine), leafDeep, pines, true);
+  forest(shapes.trunk, bark, [...rounds, ...pines], false, 1);
+  forest(shapes.palmTrunk, bark, palms, false, 1);
+  forest(merged(shapes.fronds), leaf, palms, true);
+  // Flowers and tufts on the plateaus, rocks along the beaches.
+  const dots: Plant[] = [];
+  const stones: Plant[] = [];
+  for (const [id, points] of Object.entries(outlines) as [
+    "l" | "a" | "i",
+    Point[],
+  ][]) {
+    for (let k = 0; k < 220; k++) {
+      const jx = 14 + roll() * 196;
+      const jy = 26 + roll() * 150;
+      if (!inside(points, jx, jy)) continue;
+      const depth = edgeDistance(points, jx, jy) * S;
+      if (keepClear.some(([sx, sy]) => Math.hypot(sx - jx, sy - jy) < 8))
+        continue;
+      if (lionPath.some(([px, py]) => Math.hypot(px - jx, py - jy) < 3))
+        continue;
+      if (depth > GRASS.inset + 0.08)
+        dots.push({
+          x: wx(jx),
+          z: wz(jy),
+          y: TOP,
+          kind: Math.floor(roll() * 3),
+          scale: 0.6 + roll() * 0.6,
+          turn: roll() * 6.28,
+          island: id,
+        });
+    }
+    // Rocks just off the beach, half in the water.
+    for (let i = 0; i < points.length; i++) {
+      const [ax, ay] = points[i];
+      const [bx, by] = points[(i + 1) % points.length];
+      const span = Math.hypot(bx - ax, by - ay);
+      for (let s = 4; s < span; s += 9 + roll() * 9) {
+        if (roll() < 0.45) continue;
+        const u = s / span;
+        const nx = (by - ay) / span;
+        const ny = -(bx - ax) / span;
+        const sign = inside(
+          points,
+          ax + (bx - ax) * u + nx,
+          ay + (by - ay) * u + ny,
+        )
+          ? -1
+          : 1;
+        const out = 1.5 + roll() * 3;
+        stones.push({
+          x: wx(ax + (bx - ax) * u + nx * sign * out),
+          z: wz(ay + (by - ay) * u + ny * sign * out),
+          y: 0.02,
+          kind: 0,
+          scale: 0.7 + roll() * 0.9,
+          turn: roll() * 6.28,
+          island: id,
+        });
+      }
+    }
+  }
+  const flowerColors = [c.coral, c.yellow, c.white];
+  flowerColors.forEach((color, kind) => {
+    const list = dots.filter((p) => p.kind === kind);
+    const bloom = ball(0.03, 6, 5).translate(0, 0.06, 0);
+    forest(bloom, paint(color), list, false, null);
+  });
+  const tuft = merged(
+    [0, 1, 2].map((k) =>
+      ball(0.045, 6, 5).translate((k - 1) * 0.04, 0.02, (k % 2) * 0.02),
+    ),
+  );
+  forest(tuft, leafDeep, dots, false, null);
+  forest(shapes.rock, paint(c.rock), stones, false, 1.1);
 
-  // --- Clouds on the horizon, for the low shot; out of frame from above --
-  const puff = ball(1, 14, 10);
+  // --- Clouds on the horizon, for the low shot; out of frame from above ----
+  const puff = ball(1, 16, 12);
   const clouds = (
     [
       [-17, 4.4, -27, 2.3],
@@ -1516,16 +1688,17 @@ export function createIslandWorld(
         [-0.95, -0.2, 0.1, 0.62],
         [0.95, -0.15, -0.05, 0.7],
         [0.35, 0.42, -0.2, 0.58],
+        [-0.45, 0.3, 0.15, 0.5],
       ] as const
     ).map(([dx, dy, dz, r]) =>
       puff
         .clone()
-        .scale(r * size, r * 0.78 * size, r * size)
+        .scale(r * size, r * 0.72 * size, r * size)
         .translate(dx * size, dy * size, dz * size),
     );
     const cloud = put(
       scene,
-      solid(mergeGeometries(lumps) ?? puff, toon(c.white), ink.bold),
+      kit.solid(mergeGeometries(lumps.map(flat)) ?? puff, paint(c.white), 1.6),
       x,
       y,
       z,
@@ -1533,20 +1706,96 @@ export function createIslandWorld(
     return { cloud, x, phase: k * 1.7 };
   });
 
-  // --- Animals on the three routes --------------------------------------
-  const sprite = (map: Texture, size: number) => {
-    const icon = new Sprite(
-      new SpriteMaterial({ map, transparent: true, depthWrite: false }),
-    );
-    icon.scale.setScalar(size);
-    return icon;
+  // --- Merge everything that does not move ---------------------------------------
+  // Static parts of each island are merged by material into a handful of
+  // meshes (they still rise and lift with their island); animated parts and
+  // instanced plants keep their own.
+  const bake = (root: Object3D, shadows: boolean) => {
+    root.updateMatrixWorld(true);
+    const inverse = new Matrix4().copy(root.matrixWorld).invert();
+    const groups = new Map<Material, BufferGeometry[]>();
+    const casts = new Map<Material, boolean>();
+    const victims: Mesh[] = [];
+    const inner: Object3D[] = [];
+    const walk = (object: Object3D) => {
+      for (const child of [...object.children]) {
+        if (child instanceof InstancedMesh) continue;
+        if (child.userData.live) {
+          inner.push(child);
+          continue;
+        }
+        if (
+          child instanceof Mesh &&
+          !Array.isArray(child.material) &&
+          !child.userData.island
+        ) {
+          const geometry = child.geometry
+            .clone()
+            .applyMatrix4(
+              new Matrix4().multiplyMatrices(inverse, child.matrixWorld),
+            );
+          const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+          for (const name of Object.keys(flat.attributes))
+            if (!["position", "normal", "uv"].includes(name))
+              flat.deleteAttribute(name);
+          if (!flat.getAttribute("uv"))
+            flat.setAttribute(
+              "uv",
+              new Float32BufferAttribute(
+                new Float32Array(flat.getAttribute("position").count * 2),
+                2,
+              ),
+            );
+          const list = groups.get(child.material) ?? [];
+          list.push(flat);
+          groups.set(child.material, list);
+          casts.set(
+            child.material,
+            !child.userData.shell &&
+              !(child.material instanceof MeshBasicMaterial),
+          );
+          victims.push(child);
+        }
+        walk(child);
+      }
+    };
+    walk(root);
+    for (const mesh of victims) mesh.removeFromParent();
+    const flying = (() => {
+      for (let node: Object3D | null = root; node; node = node.parent)
+        if (node.userData.flying) return true;
+      return false;
+    })();
+    for (const [material, list] of groups) {
+      const geometry = mergeGeometries(list);
+      if (!geometry) continue;
+      const mesh = new Mesh(geometry, material);
+      const solid = casts.get(material) ?? false;
+      mesh.castShadow = shadows && solid && !flying;
+      mesh.receiveShadow = solid;
+      mesh.userData.shell = !solid && material instanceof ShaderMaterial;
+      root.add(mesh);
+    }
+    for (const group of inner) bake(group, shadows);
   };
-  const curveOf = (points: [number, number, number?][], y: number) =>
-    new CatmullRomCurve3(
-      points.map(([lx, ly, h]) => ground(lx, ly, h ?? y)),
-      false,
-      "centripetal",
-    );
+  // Landmarks (and the animals that stay put) cast shadows; the animals on
+  // the move get a soft blob under them instead.
+  for (const root of islandRoots.values()) bake(root, true);
+
+  // --- Animals on the three routes ------------------------------------------------
+  const blobMaterial = new MeshBasicMaterial({
+    map: art.blob.texture,
+    color: c.ink,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.32,
+  });
+  const blobShape = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const shadowFor = () => {
+    const mesh = new Mesh(blobShape, blobMaterial);
+    scene.add(mesh);
+    return mesh;
+  };
   const routeDots = (curve: CatmullRomCurve3, color: Color, gap: number) => {
     const count = Math.max(2, Math.round(curve.getLength() / gap));
     const positions: number[] = [];
@@ -1558,11 +1807,11 @@ export function createIslandWorld(
       geometry,
       new PointsMaterial({
         color,
-        size: 0.13,
+        size: 0.12,
         map: art.dot.texture,
         transparent: true,
         depthWrite: false,
-        opacity: 0.85,
+        opacity: 0.8,
       }),
     );
     scene.add(dots);
@@ -1571,7 +1820,7 @@ export function createIslandWorld(
   const pop = (u: number) =>
     smooth(clamp(u / 0.06, 0, 1)) * smooth(clamp((1 - u) / 0.06, 0, 1));
 
-  // 聽: Taiwan blue magpies, long tail and red beak, carrying a story.
+  // 聽: Taiwan blue magpies bring stories in from the visitor's island.
   const magpiePath = curveOf(
     [
       [140, 203, 0.55],
@@ -1582,133 +1831,66 @@ export function createIslandWorld(
     ],
     1,
   );
-  routeDots(magpiePath, c.yellow, 0.32);
-  const magpie = () => {
-    const group = new Group();
-    const body = new Group();
-    group.add(body);
-    const blue = toon(c.blue);
-    const torso = ball(0.11, 14, 10);
-    const bird = put(body, solid(torso, blue), 0, 0, 0);
-    bird.scale.set(0.85, 0.8, 1.45);
-    put(body, solid(ball(0.075, 12, 10), toon(c.ink)), 0, 0.05, 0.15);
-    const beak = new ConeGeometry(0.028, 0.09, 8);
-    beak.rotateX(Math.PI / 2);
-    put(body, new Mesh(beak, toon(c.coral)), 0, 0.04, 0.24);
-    put(body, solid(box(0.055, 0.016, 0.44), blue), 0, -0.01, -0.33);
-    put(body, solid(box(0.065, 0.018, 0.08), toon(c.white)), 0, -0.01, -0.56);
-    const wings = [-1, 1].map((side) => {
-      const pivot = put(body, new Group(), side * 0.07, 0.03, 0);
-      put(pivot, solid(box(0.28, 0.016, 0.15), blue), side * 0.14, 0, 0);
-      return { pivot, side };
-    });
-    const cargo = put(group, sprite(art.bubble.texture, 0.48), 0, 0.3, 0.12);
-    return { group, body, wings, cargo };
-  };
+  routeDots(magpiePath, c.yellow, 0.34);
   for (const offset of [0, 0.5]) {
-    const bird = magpie();
+    const bird = magpie(kit);
+    bake(bird.group, false);
     scene.add(bird.group);
     carriers.push({
       group: bird.group,
       curve: magpiePath,
       period: 7.5,
       offset,
+      shadow: shadowFor(),
+      size: 0.6,
+      pitch: true,
       last: 0,
       move(t, u) {
-        const size = pop(u);
-        bird.group.scale.setScalar(size * 1.35);
-        for (const { pivot, side } of bird.wings)
-          pivot.rotation.z = side * Math.sin(t * 16 + offset * 9) * 0.7;
-        bird.body.rotation.z = Math.sin(t * 2 + offset * 5) * 0.12;
-        bird.cargo.position.y = 0.3 + Math.sin(t * 8) * 0.02;
+        bird.group.scale.setScalar(pop(u) * 1.45);
+        bird.fly(t, Math.sin(t * 0.9 + offset * 7) > 0.55);
       },
     });
   }
 
-  // 寫: lion cubs carrying code across the islands; the AI star makes the
-  // load bigger as they pass it.
-  const walkPath = curveOf(lionPath, TOP);
-  routeDots(walkPath, c.coral, 0.3);
+  // 寫: lion cubs carry code over the islands; the AI star makes it bigger.
+  routeDots(walkPath, c.coral, 0.32);
   let starAt = 0;
   {
     let best = Infinity;
-    const star = ground(brandLogo.starCenter[0], brandLogo.starCenter[1]);
+    const center = ground(brandLogo.starCenter[0], brandLogo.starCenter[1]);
     for (let k = 0; k <= 400; k++) {
-      const d = walkPath.getPointAt(k / 400).distanceTo(star);
+      const d = walkPath.getPointAt(k / 400).distanceTo(center);
       if (d < best) {
         best = d;
         starAt = k / 400;
       }
     }
   }
-  const lionCub = () => {
-    const group = new Group();
-    const body = put(group, new Group(), 0, 0, 0);
-    const fur = toon(c.yellow);
-    const torso = put(body, solid(ball(0.13, 14, 10), fur), 0, 0.17, -0.02);
-    torso.scale.set(1, 0.85, 1.25);
-    put(
-      body,
-      solid(new TorusGeometry(0.12, 0.06, 8, 18), toon(c.coral)),
-      0,
-      0.33,
-      0.1,
-    );
-    put(body, solid(ball(0.115, 14, 10), fur), 0, 0.33, 0.13);
-    for (const x of [-0.085, 0.085])
-      put(body, solid(ball(0.04, 8, 6), fur), x, 0.44, 0.1);
-    for (const x of [-0.042, 0.042])
-      put(body, new Mesh(ball(0.017, 6, 5), toon(c.ink)), x, 0.35, 0.235);
-    put(body, new Mesh(ball(0.02, 6, 5), toon(c.ink)), 0, 0.315, 0.245);
-    const legs = [
-      [-0.07, 0.08],
-      [0.07, 0.08],
-      [-0.07, -0.1],
-      [0.07, -0.1],
-    ].map(([x, z]) => {
-      const pivot = put(body, new Group(), x, 0.12, z);
-      put(pivot, new Mesh(cylinder(0.03, 0.03, 0.12, 6), fur), 0, -0.06, 0);
-      return pivot;
-    });
-    const tail = put(body, new Group(), 0, 0.2, -0.17);
-    put(
-      tail,
-      new Mesh(cylinder(0.012, 0.012, 0.18, 5), fur),
-      0,
-      0.06,
-      -0.04,
-    ).rotation.x = -0.7;
-    put(tail, new Mesh(ball(0.035, 8, 6), toon(c.coral)), 0, 0.12, -0.1);
-    const cargo = put(group, sprite(art.code.texture, 0.42), 0, 0.68, 0);
-    return { group, body, legs, tail, cargo };
-  };
   for (const offset of [0, 0.5]) {
-    const cub = lionCub();
+    const cub = lionCub(kit, "code");
+    bake(cub.group, false);
     scene.add(cub.group);
+    const sign = cub.group.getObjectByProperty("type", "Sprite");
     carriers.push({
       group: cub.group,
       curve: walkPath,
-      period: 15,
+      period: 16,
       offset,
+      shadow: shadowFor(),
+      size: 0.55,
+      pitch: false,
       last: 0,
       move(t, u, previous) {
-        cub.group.scale.setScalar(pop(u) * 1.25);
-        const step = t * 11 + offset * 7;
-        cub.body.position.y = Math.abs(Math.sin(step)) * 0.035;
-        cub.legs.forEach(
-          (leg, k) =>
-            (leg.rotation.x = Math.sin(step + (k % 2 ? Math.PI : 0)) * 0.6),
-        );
-        cub.tail.rotation.z = Math.sin(t * 5) * 0.4;
-        if (previous < starAt && u >= starAt) starPulse = t;
+        cub.group.scale.setScalar(pop(u) * 1.2);
+        cub.walk(t, true);
+        if (previous < starAt && u >= starAt) star?.kick(t);
         const grown = smooth(clamp((u - starAt) / 0.04, 0, 1));
-        cub.cargo.scale.setScalar(0.42 * (1 + grown * 0.55));
-        cub.cargo.position.y = 0.68 + grown * 0.14;
+        if (sign) sign.scale.setScalar(0.32 * (1 + grown * 0.6));
       },
     });
   }
 
-  // 創: sea turtles bringing the finished work home to the visitor's island.
+  // 創: sea turtles bring the finished work home to the visitor's island.
   const turtlePath = curveOf(
     [
       [13, 112],
@@ -1717,89 +1899,162 @@ export function createIslandWorld(
       [30, 186],
       [56, 197],
       [78, 202],
-      [97, 201.5],
+      [96, 201.5],
     ],
-    0.02,
+    0.03,
   );
-  routeDots(turtlePath, c.green, 0.34);
-  const turtle = () => {
-    const group = new Group();
-    const body = put(group, new Group(), 0, 0, 0);
-    const shell = put(
-      body,
-      solid(ball(0.24, 16, 10), toon(mix(c.green, c.ink, 0.25))),
-      0,
-      0.02,
-      0,
-    );
-    shell.scale.set(1, 0.42, 1.25);
-    put(
-      body,
-      solid(ball(0.085, 12, 8), toon(mix(c.green, c.paper, 0.45))),
-      0,
-      0.05,
-      0.32,
-    );
-    for (const x of [-0.04, 0.04])
-      put(body, new Mesh(ball(0.016, 6, 5), toon(c.ink)), x, 0.09, 0.39);
-    const flippers = [
-      [-0.21, 0.13, 1],
-      [0.21, 0.13, -1],
-      [-0.17, -0.2, -1],
-      [0.17, -0.2, 1],
-    ].map(([x, z, phase]) => {
-      const pivot = put(body, new Group(), x, 0, z);
-      const fin = put(
-        pivot,
-        solid(ball(0.08, 10, 6), toon(mix(c.green, c.paper, 0.45))),
-        x * 0.4,
-        0,
-        0,
-      );
-      fin.scale.set(1.6, 0.28, 0.7);
-      return { pivot, phase };
+  routeDots(turtlePath, c.green, 0.36);
+  const ripples: { mesh: Mesh; born: number; size: number }[] = [];
+  const rippleMaterial = (opacity: number) =>
+    new MeshBasicMaterial({
+      map: art.ring.texture,
+      color: c.white,
+      transparent: true,
+      depthWrite: false,
+      opacity,
     });
-    // The work it carries: a green gift with a yellow ribbon.
-    const gift = put(body, new Group(), 0, 0.2, -0.02);
-    put(gift, solid(box(0.2, 0.17, 0.2), toon(c.green)), 0, 0, 0);
-    put(gift, new Mesh(box(0.05, 0.175, 0.205), toon(c.yellow)), 0, 0, 0);
-    put(gift, new Mesh(box(0.205, 0.175, 0.05), toon(c.yellow)), 0, 0, 0);
-    put(
-      gift,
-      solid(new TorusGeometry(0.035, 0.016, 6, 12), toon(c.yellow)),
-      -0.03,
-      0.11,
-      0,
-    );
-    put(
-      gift,
-      solid(new TorusGeometry(0.035, 0.016, 6, 12), toon(c.yellow)),
-      0.03,
-      0.11,
-      0,
-    );
-    return { group, body, flippers };
+  const ripple = (at: Vector3, t: number, size: number) => {
+    let slot = ripples.find((item) => t - item.born > 1.6);
+    if (!slot) {
+      if (ripples.length > 24) return;
+      slot = { mesh: new Mesh(blobShape, rippleMaterial(0)), born: t, size };
+      scene.add(slot.mesh);
+      ripples.push(slot);
+    }
+    slot.born = t;
+    slot.size = size;
+    slot.mesh.position.set(at.x, 0.03, at.z);
   };
   for (const offset of [0, 0.5]) {
-    const swimmer = turtle();
+    const swimmer = seaTurtle(kit);
+    bake(swimmer.group, false);
     scene.add(swimmer.group);
+    let wake = 0;
     carriers.push({
       group: swimmer.group,
       curve: turtlePath,
-      period: 17,
+      period: 18,
       offset,
+      shadow: shadowFor(),
+      size: 0.7,
+      pitch: false,
       last: 0,
       move(t, u) {
         swimmer.group.scale.setScalar(pop(u) * 1.35);
-        swimmer.body.position.y = Math.sin(t * 2.2 + offset * 4) * 0.025;
-        swimmer.body.rotation.z = Math.sin(t * 1.4 + offset * 3) * 0.06;
-        for (const { pivot, phase } of swimmer.flippers)
-          pivot.rotation.y = Math.sin(t * 3.2 + offset * 5) * 0.5 * phase;
+        swimmer.swim(t);
+        if (!still && t - wake > 0.7 && u > 0.04 && u < 0.96) {
+          wake = t;
+          ripple(swimmer.group.position, t, 0.9);
+        }
       },
     });
   }
 
-  // --- Camera -----------------------------------------------------------
+  // Pink dolphins leap out of the open sea now and then, two at a time.
+  const pod = [dolphin(kit), dolphin(kit)].map((model) => {
+    model.group.visible = false;
+    bake(model.group, false);
+    scene.add(model.group);
+    return model;
+  });
+  // Small animals drop their outlines when the camera is far away.
+  const detail: { at: Object3D; shells: Object3D[] }[] = [];
+  const outlined = (at: Object3D) => {
+    const shells: Object3D[] = [];
+    at.traverse((object) => {
+      if (object.userData.shell) shells.push(object);
+    });
+    detail.push({ at, shells });
+  };
+  for (const carrier of carriers) outlined(carrier.group);
+  for (const model of pod) outlined(model.group);
+  for (const { model } of landmarks)
+    model.group.traverse((object) => {
+      if (object.userData.live && object.parent === model.group)
+        outlined(object);
+    });
+  const splashes: { sprite: Sprite; born: number; velocity: Vector3 }[] = [];
+  const splash = (at: Vector3, t: number) => {
+    for (let k = 0; k < 9; k++) {
+      let drop = splashes.find((item) => t - item.born > 0.9);
+      if (!drop) {
+        if (splashes.length > 40) break;
+        const sprite = new Sprite(
+          new SpriteMaterial({
+            map: art.dot.texture,
+            color: c.white,
+            transparent: true,
+            depthWrite: false,
+          }),
+        );
+        scene.add(sprite);
+        drop = { sprite, born: t, velocity: new Vector3() };
+        splashes.push(drop);
+      }
+      const a = (k / 9) * Math.PI * 2;
+      drop.born = t;
+      drop.sprite.position.copy(at).setY(0.05);
+      drop.velocity.set(
+        Math.cos(a) * 0.9,
+        2.2 + (k % 3) * 0.5,
+        Math.sin(a) * 0.9,
+      );
+    }
+    ripple(at, t, 1.4);
+  };
+  const leapSites = [
+    [-12.5, 9.5, 0.6],
+    [12.5, 10, -0.5],
+    [-13, -3, 1.2],
+    [12.8, -4, -1.4],
+    [3, 14, 0.2],
+  ] as const;
+  let leap = { start: 4, site: 0 };
+
+  // Gulls round the tower are part of it; fireflies and sparkles are not.
+  const glowCloud = (count: number, map: Texture, size: number) => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new Float32BufferAttribute(new Float32Array(count * 3), 3),
+    );
+    geometry.setAttribute(
+      "color",
+      new Float32BufferAttribute(new Float32Array(count * 3), 3),
+    );
+    const points = new Points(
+      geometry,
+      new PointsMaterial({
+        map,
+        size,
+        vertexColors: true,
+        blending: AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    points.frustumCulled = false;
+    scene.add(points);
+    return geometry;
+  };
+  const fireflies = Array.from({ length: 22 }, (_, k) => {
+    const home = plants[(k * 7) % Math.max(1, plants.length)];
+    return { x: home?.x ?? 0, z: home?.z ?? 0, phase: k * 1.37 };
+  });
+  const flyCloud = glowCloud(fireflies.length, art.glow.texture, 0.24);
+  const flyColor = mix(c.yellow, c.green, 0.3);
+  const sparkles = Array.from({ length: 16 }, (_, k) => {
+    const a = k * 2.399;
+    const r = 7 + (k % 5) * 1.6;
+    return {
+      x: Math.cos(a) * r * 1.3,
+      z: Math.sin(a) * r + 1.5,
+      phase: k * 0.71,
+    };
+  });
+  const sparkCloud = glowCloud(sparkles.length, art.spark.texture, 0.32);
+
+  // --- Camera -----------------------------------------------------------------
   const cluster = [
     ...Object.values(outlines).flat(),
     [
@@ -1825,7 +2080,7 @@ export function createIslandWorld(
     const heights = landmarks.filter((item) => item.island === id);
     return [
       ...outlines[id].map(([x, y]) => ground(x, y, 0)),
-      ...heights.map((item) => item.at.clone().setY(TOP + item.mark.height)),
+      ...heights.map((item) => item.at.clone().setY(TOP + item.model.height)),
     ];
   };
   const centerOf = (points: Vector3[]) => {
@@ -1837,7 +2092,6 @@ export function createIslandWorld(
     }
     return min.add(max).multiplyScalar(0.5).setY(0.3);
   };
-
   const pose = (
     target: Vector3,
     yaw: number,
@@ -1884,7 +2138,7 @@ export function createIslandWorld(
   let width = 1;
   let height = 1;
   let overview = pose(new Vector3(0, 0, 1.2), 0, 1.0);
-  let opening = pose(new Vector3(0, 0.8, -1), -0.42, 0.12);
+  let opening = pose(new Vector3(0, 0.8, -1), -0.42, 0.16);
   const focusPoses = new Map<IslandId, Pose>();
   const yawFor = (id: IslandId, wide: boolean) =>
     ({
@@ -1919,7 +2173,22 @@ export function createIslandWorld(
     }
   };
 
-  // --- Labels and pins (HTML over the canvas) ---------------------------
+  // Close enough to one landmark to watch its animals at work, from the
+  // front (models face the camera's usual side) and a little above.
+  const closeUp = (island: IslandId, index: number): Pose | null => {
+    const item = landmarks.filter((entry) => entry.island === island)[index];
+    if (!item) return null;
+    const reach = Math.max(0.95, item.model.height * 0.72);
+    const wide = width / height > 1.15;
+    return {
+      target: item.at.clone().setY(TOP + item.model.height * 0.42),
+      yaw: island === "l" ? -0.45 : wide ? 0.42 : 0.2,
+      pitch: 0.36,
+      distance: (reach / Math.sin((FOV * Math.PI) / 360)) * (wide ? 1.15 : 1.5),
+    };
+  };
+
+  // --- Labels and pins (HTML over the canvas) --------------------------------
   const tagAnchors: Record<IslandId, Vector3> = {
     l: ground(33, 22, 1.5),
     a: ground(118, 20, 1.6),
@@ -1945,7 +2214,7 @@ export function createIslandWorld(
     return {
       element,
       anchor: item
-        ? item.at.clone().setY(TOP + item.mark.height + 0.3)
+        ? item.at.clone().setY(TOP + item.model.height + 0.3)
         : new Vector3(),
     };
   });
@@ -1962,35 +2231,25 @@ export function createIslandWorld(
     }
   };
 
-  // --- State --------------------------------------------------------------
+  // --- State ---------------------------------------------------------------------
   let focused: IslandId | null = null;
+  let looked: number | null = null;
   let hovered: IslandId | null = null;
   let flight = { from: overview, start: -10 };
   let current = overview;
   let revealed = false;
   let rise = still ? 1 : 0;
   const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
-  let bouncing: { mark: Landmark; start: number } | null = null;
+  let bouncing: { model: Model; start: number } | null = null;
   // The islands stay under water until the section is first on screen.
   let introStart = still ? -10 : Infinity;
   let lit = false;
+  let shadowsDirty = true;
   const clock = () => performance.now() / 1000;
 
   // The climb starts once most of the stage is on screen (and the islands
   // are up), so the low shot and the swoop are seen whole.
   let revealStart = still ? -10 : Infinity;
-  const revealPose = (t: number) => {
-    if (still) return overview;
-    if (revealStart === Infinity && introStart !== Infinity) {
-      const rect = stage.getBoundingClientRect();
-      const view = window.innerHeight || 1;
-      const shown =
-        (Math.min(rect.bottom, view) - Math.max(rect.top, 0)) / rect.height;
-      if (shown > 0.62) revealStart = Math.max(t + 0.35, introStart + 1.7);
-    }
-    rise = easeInOut(clamp((t - revealStart) / REVEAL, 0, 1));
-    return lerpPose(opening, overview, rise);
-  };
   const lerpPose = (a: Pose, b: Pose, t: number): Pose => {
     let yaw = b.yaw - a.yaw;
     if (yaw > Math.PI) yaw -= Math.PI * 2;
@@ -2005,21 +2264,37 @@ export function createIslandWorld(
       ),
     };
   };
+  const revealPose = (t: number) => {
+    if (still) return overview;
+    if (revealStart === Infinity && introStart !== Infinity) {
+      const rect = stage.getBoundingClientRect();
+      const view = window.innerHeight || 1;
+      const shown =
+        (Math.min(rect.bottom, view) - Math.max(rect.top, 0)) / rect.height;
+      if (shown > 0.62) revealStart = Math.max(t + 0.35, introStart + 1.7);
+    }
+    rise = easeInOut(clamp((t - revealStart) / REVEAL, 0, 1));
+    return lerpPose(opening, overview, rise);
+  };
 
   const applyLight = (p: Palette) => {
-    renderer.setClearColor(p.sky);
-    (scene.fog as Fog).color.copy(p.sky);
+    renderer.setClearColor(p.horizon);
+    (scene.fog as Fog).color.copy(p.horizon);
     hemisphere.color.copy(p.fill);
     hemisphere.groundColor.copy(p.under);
     hemisphere.intensity = p.fillPower;
     sun.color.copy(p.sun);
     sun.intensity = p.sunPower;
-    sun.position.copy(p.sunAt);
+    sun.position
+      .copy(sun.target.position)
+      .addScaledVector(p.sunAt.clone().normalize(), 32);
+    skyMaterial.uniforms.uStars.value = p.glow;
     for (const item of lamps)
       item.material.color.copy(item.day).lerp(item.night, p.glow);
     for (const item of halos)
       item.sprite.material.opacity =
         item.day + (item.night - item.day) * p.glow;
+    blobMaterial.opacity = 0.32 - p.glow * 0.12;
   };
 
   const raycaster = new Raycaster();
@@ -2038,10 +2313,16 @@ export function createIslandWorld(
   const setHover = (id: IslandId | null) => {
     if (id === hovered) return;
     hovered = id;
-    for (const [key, line] of islandLines) {
-      line.uniforms.uColor.value.copy(key === id ? c.yellow : c.ink);
-      line.uniforms.uThickness.value = key === id ? 4 : 2.6;
-    }
+    for (const [key, materials] of islandLines)
+      for (const line of materials) {
+        line.uniforms.uColor.value.copy(
+          key === id
+            ? c.yellow
+            : inkFor(line === materials[0] ? c.sand : c.leafDeep),
+        );
+        line.uniforms.uThickness.value =
+          key === id ? 3.6 : line === materials[0] ? 2 : 1.8;
+      }
     canvas.style.cursor = id ? "pointer" : "";
     if (id) stage.dataset.hover = id;
     else delete stage.dataset.hover;
@@ -2089,32 +2370,48 @@ export function createIslandWorld(
   };
   canvas.addEventListener("webglcontextlost", onLost);
 
-  // --- Loop -----------------------------------------------------------------
+  // --- Loop -----------------------------------------------------------------------
   let running = false;
   let raf = 0;
   const islandIds = islands.map((island) => island.id);
+  const matrix = new Matrix4();
+  const spin = new Quaternion();
+  const up = new Vector3(0, 1, 0);
+  const tilt = new Vector3(1, 0, 0);
+  const sway = new Quaternion();
+  const size = new Vector3();
+  const place3 = new Vector3();
 
   function draw() {
     const t = clock();
     // Islands rise out of the sea one after another the first time.
+    let moving = false;
     islandIds.forEach((id, k) => {
       const root = islandRoots.get(id);
       if (!root) return;
       const local = clamp((t - introStart - k * 0.24) / 1.3, 0, 1);
       const back =
         local === 1 ? 1 : 1 + 2.2 * (local - 1) ** 3 + 1.2 * (local - 1) ** 2;
-      root.position.y = (back - 1) * 1.6;
+      const lift = id === hovered ? 0.14 : 0;
+      const before = root.userData.lift ?? 0;
+      root.userData.lift = before + (lift - before) * (still ? 1 : 0.15);
+      root.position.y = (back - 1) * 1.6 + root.userData.lift;
+      if (local < 1 || Math.abs(root.userData.lift - lift) > 0.002)
+        moving = true;
     });
     if (fade.start >= 0) {
       const k = still ? 1 : clamp((t - fade.start) / 1.4, 0, 1);
       blend(fade.from, fade.to, smooth(k), now);
       if (k === 1) fade.start = -1;
+      shadowsDirty = true;
     }
+    if (moving) shadowsDirty = true;
     applyLight(now);
     pointer.x += (pointer.tx - pointer.x) * 0.06;
     pointer.y += (pointer.ty - pointer.y) * 0.06;
     const base = focused
-      ? (focusPoses.get(focused) ?? overview)
+      ? (looked !== null && closeUp(focused, looked)) ||
+        (focusPoses.get(focused) ?? overview)
       : revealPose(t);
     const k = still ? 1 : clamp((t - flight.start) / FLIGHT, 0, 1);
     current = k < 1 ? lerpPose(flight.from, base, easeInOut(k)) : base;
@@ -2123,31 +2420,50 @@ export function createIslandWorld(
       yaw: current.yaw + (still ? 0 : pointer.x * 0.045),
       pitch: current.pitch + (still ? 0 : -pointer.y * 0.03),
     });
+    sky.position.copy(camera.position);
     stage.style.setProperty("--isl-rise", rise.toFixed(3));
     if (!revealed && rise > 0.97) {
       revealed = true;
-      starPulse = t;
+      star?.kick(t);
       events.reveal();
     }
     const time = still ? 0 : t;
     seaMaterial.uniforms.uTime.value = time;
-    for (const { mark } of landmarks) mark.tick?.(time);
+    skyMaterial.uniforms.uTime.value = time;
+    for (const { model } of landmarks) model.tick?.(time, camera.position);
     for (const { cloud, x, phase } of clouds)
       cloud.position.x = x + Math.sin(time * 0.05 + phase) * 1.6;
-    // The island under the pointer lifts a little to meet it.
-    for (const [id, root] of islandRoots) {
-      const lift = id === hovered ? 0.14 : 0;
-      root.userData.lift =
-        (root.userData.lift ?? 0) +
-        (lift - (root.userData.lift ?? 0)) * (still ? 1 : 0.15);
-      root.position.y += root.userData.lift;
+    // Plants follow their island and lean a little in the breeze.
+    for (const { meshes, list, sway: leans } of plantSets) {
+      list.forEach((plant, k) => {
+        sway.setFromAxisAngle(
+          tilt,
+          leans ? Math.sin(time * 1.3 + plant.x * 0.8 + plant.z) * 0.035 : 0,
+        );
+        spin.setFromAxisAngle(up, plant.turn).multiply(sway);
+        size.setScalar(plant.scale);
+        place3.set(
+          plant.x,
+          plant.y + (islandRoots.get(plant.island)?.position.y ?? 0),
+          plant.z,
+        );
+        matrix.compose(place3, spin, size);
+        for (const mesh of meshes) mesh.setMatrixAt(k, matrix);
+      });
+      for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
     }
+    bridges.position.y = Math.min(
+      ...(["l", "a", "i"] as const).map(
+        (id) => islandRoots.get(id)?.position.y ?? 0,
+      ),
+    );
     if (bouncing) {
       const b = clamp((t - bouncing.start) / 0.7, 0, 1);
       const hop = Math.sin(b * Math.PI) * (1 - b * 0.4);
-      bouncing.mark.group.scale.setScalar(1 + hop * 0.22);
+      bouncing.model.group.scale.setScalar(1 + hop * 0.22);
       if (b === 1 && !still) bouncing = null;
     }
+    const ready = still ? 1 : smooth(clamp((t - introStart - 1.6) / 0.6, 0, 1));
     for (const carrier of carriers) {
       const u = still
         ? (carrier.offset + 0.3) % 1
@@ -2155,9 +2471,119 @@ export function createIslandWorld(
       const point = carrier.curve.getPointAt(u);
       const ahead = carrier.curve.getPointAt(Math.min(u + 0.01, 1));
       carrier.group.position.copy(point);
-      if (u < 0.99) carrier.group.lookAt(ahead.x, point.y, ahead.z);
+      if (u < 0.99)
+        carrier.group.lookAt(
+          ahead.x,
+          carrier.pitch ? ahead.y : point.y,
+          ahead.z,
+        );
       carrier.move(time, u, carrier.last);
       carrier.last = u;
+      carrier.group.scale.multiplyScalar(ready);
+      carrier.group.visible = ready > 0.01;
+      const floor = groundAt(point.x, point.z);
+      const lifted = Math.max(0, point.y - floor);
+      carrier.shadow.position.set(point.x, floor + 0.015, point.z);
+      carrier.shadow.scale.setScalar(
+        carrier.size * pop(u) * ready * (1 + lifted * 0.25),
+      );
+      carrier.shadow.visible = pop(u) * ready > 0.05;
+    }
+    // Dolphins.
+    if (!still) {
+      const local = t - leap.start;
+      const [sx, sz, heading] = leapSites[leap.site];
+      pod.forEach((model, k) => {
+        const u = (local - k * 0.28) / 1.5;
+        model.group.visible = u > 0 && u < 1;
+        if (!model.group.visible) return;
+        const side = (k - 0.5) * 0.8;
+        const along = (u - 0.5) * 3;
+        const x = sx + Math.cos(heading) * along - Math.sin(heading) * side;
+        const z = sz + Math.sin(heading) * along + Math.cos(heading) * side;
+        const y = -0.35 + 4 * 1.25 * u * (1 - u);
+        const du = 0.01;
+        const nx =
+          sx + Math.cos(heading) * (along + du * 3) - Math.sin(heading) * side;
+        const nz =
+          sz + Math.sin(heading) * (along + du * 3) + Math.cos(heading) * side;
+        const ny = -0.35 + 4 * 1.25 * (u + du) * (1 - u - du);
+        model.group.position.set(x, y, z);
+        model.group.lookAt(nx, ny, nz);
+        if (model.group.userData.out === undefined && u > 0.04) {
+          model.group.userData.out = true;
+          splash(model.group.position, t);
+        }
+        if (model.group.userData.back === undefined && u > 0.9) {
+          model.group.userData.back = true;
+          splash(model.group.position, t);
+        }
+      });
+      if (local > 2.2) {
+        leap = {
+          start: t + 5 + Math.random() * 5,
+          site:
+            (leap.site + 1 + Math.floor(Math.random() * 3)) % leapSites.length,
+        };
+        for (const model of pod) {
+          delete model.group.userData.out;
+          delete model.group.userData.back;
+        }
+      }
+      for (const drop of splashes) {
+        const age = t - drop.born;
+        drop.sprite.visible = age < 0.9;
+        if (!drop.sprite.visible) continue;
+        drop.sprite.position.addScaledVector(drop.velocity, 1 / 60);
+        drop.velocity.y -= 9 / 60;
+        drop.sprite.scale.setScalar(0.18 * (1 - age));
+        drop.sprite.material.opacity = 1 - age / 0.9;
+      }
+    }
+    for (const item of ripples) {
+      const age = t - item.born;
+      item.mesh.visible = age < 1.6 && !still;
+      const grow = age / 1.6;
+      item.mesh.scale.setScalar(item.size * (0.3 + grow));
+      (item.mesh.material as MeshBasicMaterial).opacity = (1 - grow) * 0.7;
+    }
+    {
+      const where = flyCloud.getAttribute("position");
+      const tint = flyCloud.getAttribute("color");
+      fireflies.forEach((fly, k) => {
+        const a = time * 0.5 + fly.phase;
+        where.setXYZ(
+          k,
+          fly.x + Math.sin(a) * 0.5,
+          TOP + 0.5 + Math.sin(a * 1.7) * 0.25,
+          fly.z + Math.cos(a * 0.8) * 0.5,
+        );
+        const glow =
+          now.glow * (0.5 + Math.sin(time * 3 + fly.phase * 5) * 0.5);
+        tint.setXYZ(k, flyColor.r * glow, flyColor.g * glow, flyColor.b * glow);
+      });
+      where.needsUpdate = tint.needsUpdate = true;
+    }
+    {
+      const where = sparkCloud.getAttribute("position");
+      const tint = sparkCloud.getAttribute("color");
+      sparkles.forEach((spark, k) => {
+        const twinkle =
+          Math.max(0, Math.sin(time * 1.6 + spark.phase * 3)) ** 3;
+        where.setXYZ(k, spark.x, 0.08, spark.z);
+        const light = (1 - now.glow) * twinkle * 0.9;
+        tint.setXYZ(k, light, light, light);
+      });
+      where.needsUpdate = tint.needsUpdate = true;
+    }
+    for (const { at, shells } of detail) {
+      at.getWorldPosition(probe);
+      const near = probe.distanceTo(camera.position) < 11;
+      for (const shell of shells) shell.visible = near;
+    }
+    if (shadowsDirty) {
+      renderer.shadowMap.needsUpdate = true;
+      shadowsDirty = false;
     }
     renderer.render(scene, camera);
     placeLabels();
@@ -2215,6 +2641,7 @@ export function createIslandWorld(
       : still
         ? overview
         : current;
+    shadowsDirty = true;
     draw();
   }
 
@@ -2239,6 +2666,7 @@ export function createIslandWorld(
       if (revealStart > clock()) revealStart = clock() - REVEAL;
       flight = { from: current, start: clock() };
       focused = id;
+      looked = null;
       bouncing = null;
       setHover(null);
       wake();
@@ -2257,10 +2685,16 @@ export function createIslandWorld(
     },
     spot(index) {
       const mine = landmarks.filter((item) => item.island === focused);
-      const mark = index === null ? undefined : mine[index]?.mark;
-      if (bouncing && bouncing.mark !== mark)
-        bouncing.mark.group.scale.setScalar(1);
-      bouncing = mark ? { mark, start: clock() } : null;
+      const model = index === null ? undefined : mine[index]?.model;
+      if (bouncing && bouncing.model !== model)
+        bouncing.model.group.scale.setScalar(1);
+      bouncing = model ? { model, start: clock() } : null;
+      wake();
+    },
+    look(index) {
+      if (index === looked) return;
+      flight = { from: current, start: clock() };
+      looked = index;
       wake();
     },
     destroy() {
@@ -2282,13 +2716,12 @@ export function createIslandWorld(
             : [];
         for (const material of materials) material.dispose();
       });
-      for (const texture of [
+      const owned: Texture[] = [
         ramp,
         shore,
-        lionFace,
         ...Object.values(art).map((item) => item.texture),
-      ])
-        texture.dispose();
+      ];
+      for (const texture of owned) texture.dispose();
       renderer.dispose();
     },
   };

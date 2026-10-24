@@ -98,7 +98,7 @@ export const islands: readonly Island[] = [
         name: "AIEC 送測站",
         text: "LLM 模型送測：準備與協調 → 調校與測試 → 分析與檢視。",
         link: { label: "看送測經驗", href: "#evaluation-title" },
-        at: [118, 54],
+        at: [118, 70],
       },
     ],
   },

@@ -179,12 +179,15 @@ function IslandMap({
 export function IslandsSection() {
   const [focus, setFocus] = useState<IslandId | null>(null);
   const [spot, setSpot] = useState<number | null>(null);
+  // The landmark the camera has flown up to, within the focused island.
+  const [look, setLook] = useState<number | null>(null);
   const [chosenTime, setChosenTime] = useState<Daypart | null>(null);
   const taipei = useDaypart();
   const time = chosenTime ?? taipei;
   const choose = useCallback((id: IslandId | null) => {
     setFocus(id);
     setSpot(null);
+    setLook(null);
   }, []);
   const world = useIslandWorld(choose);
   const { worldRef, live } = world;
@@ -198,10 +201,18 @@ export function IslandsSection() {
   useEffect(() => {
     worldRef.current?.spot(spot);
   }, [spot, live, worldRef]);
+  useEffect(() => {
+    worldRef.current?.look(look);
+  }, [look, focus, live, worldRef]);
 
   const current = islands.find((island) => island.id === focus);
+  const looking = look === null ? undefined : current?.spots[look];
+  const toggleLook = (index: number) =>
+    setLook((value) => (value === index ? null : index));
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && focus) choose(null);
+    if (event.key !== "Escape") return;
+    if (look !== null) setLook(null);
+    else if (focus) choose(null);
   };
 
   return (
@@ -229,13 +240,14 @@ export function IslandsSection() {
             再點一座島，走進它的風景。
           </p>
         </div>
-        <div className="isl-board">
+        <div className="isl-board" data-live={live ? "" : undefined}>
           <div
             className="isl-stage"
             ref={world.stageRef}
             data-live={live ? "" : undefined}
             data-focus={focus ?? undefined}
             data-spot={spot ?? undefined}
+            data-look={look ?? undefined}
             data-time={time}
           >
             <IslandMap focus={focus} pick={choose} />
@@ -265,15 +277,18 @@ export function IslandsSection() {
             <div className="isl-pins" aria-hidden="true">
               {islands.map((island) =>
                 island.spots.map((item, index) => (
-                  <span
+                  <button
+                    type="button"
+                    tabIndex={-1}
                     key={`${island.id}-${index}`}
                     className="isl-pin"
                     data-isl-pin=""
                     data-island={island.id}
                     data-spot={index}
+                    onClick={() => focus === island.id && toggleLook(index)}
                   >
                     <span>{index + 1}</span>
-                  </span>
+                  </button>
                 )),
               )}
             </div>
@@ -282,9 +297,10 @@ export function IslandsSection() {
                 <button
                   type="button"
                   className="isl-back"
-                  onClick={() => choose(null)}
+                  onClick={() => (looking ? setLook(null) : choose(null))}
                 >
-                  <span aria-hidden="true">←</span> 回到群島
+                  <span aria-hidden="true">←</span>{" "}
+                  {looking ? `回到${current?.name}` : "回到群島"}
                 </button>
               )}
               <div className="isl-time" role="group" aria-label="群島的時間">
@@ -313,8 +329,19 @@ export function IslandsSection() {
                 loading="lazy"
                 decoding="async"
               />
-              <span key={current?.id ?? (world.revealed ? "up" : "low")}>
-                {current ? (
+              <span
+                key={
+                  looking?.name ??
+                  current?.id ??
+                  (world.revealed ? "up" : "low")
+                }
+              >
+                {looking ? (
+                  <>
+                    <strong>{looking.name}</strong>
+                    {current?.lion}
+                  </>
+                ) : current ? (
                   current.lion
                 ) : world.revealed ? (
                   <>
@@ -366,6 +393,9 @@ export function IslandsSection() {
                         {island.spots.map((item, index) => (
                           <li
                             key={item.name}
+                            className={
+                              open && look === index ? "is-looking" : undefined
+                            }
                             onPointerEnter={() => open && setSpot(index)}
                             onPointerLeave={() => setSpot(null)}
                             onFocus={() => open && setSpot(index)}
@@ -375,7 +405,21 @@ export function IslandsSection() {
                               {index + 1}
                             </b>
                             <div>
-                              <h4>{item.name}</h4>
+                              <h4>
+                                <button
+                                  type="button"
+                                  aria-pressed={open && look === index}
+                                  onClick={() => open && toggleLook(index)}
+                                >
+                                  {item.name}
+                                  <span className="isl-zoom" aria-hidden="true">
+                                    近看
+                                  </span>
+                                  <span className="toolbox-sr-only">
+                                    ，在群島上近看
+                                  </span>
+                                </button>
+                              </h4>
                               <p>{item.text}</p>
                               <a
                                 href={item.link.href}
