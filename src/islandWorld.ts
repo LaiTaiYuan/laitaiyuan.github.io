@@ -94,9 +94,10 @@ import type { Daypart } from "./motion";
 // 創 loop running (magpies bring stories in from the visitor's island, lion
 // cubs carry them over the API bridges and grow them at the AI star, turtles
 // bring the finished work back), and the islands live their own lives:
-// Leonard's lion typing at his desk with the orange-and-white cat in its bed,
-// a black bear at the Java café, a leopard cat at the record player, gulls
-// round the cloud tower, pink dolphins jumping, fireflies at night. It is a
+// Leonard's lion typing at his desk with the orange-and-white cat in its bed
+// and a white rabbit with 「沛」 on its tummy, a black bear at the Java café,
+// a leopard cat at the record player, gulls round the cloud tower, pink
+// dolphins jumping, fireflies at night. It is a
 // toy too: drag to turn the islands round, pick the animals up and drop them
 // (they find their way home), poke any landmark, and find the easter eggs.
 // Decoration only: every word and link lives in the HTML around the canvas
@@ -1015,7 +1016,6 @@ export function createIslandWorld(
   };
   const lamps: { material: MeshBasicMaterial; day: Color; night: Color }[] = [];
   const halos: { sprite: Sprite; day: number; night: number }[] = [];
-  const pending: (() => void)[] = [];
   const kit: Kit = {
     c,
     hex: tokens.hex,
@@ -1079,32 +1079,32 @@ export function createIslandWorld(
       return sprite;
     },
     words(text, width, height, ink, paper) {
+      const font = `900 ${Math.round(height * 0.62)}px "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
       const sign = drawn(width, height, (g) => {
         g.fillStyle = paper;
         g.fillRect(0, 0, width, height);
         g.fillStyle = ink;
-        g.font = `900 ${Math.round(height * 0.62)}px "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
+        g.font = font;
         g.textAlign = "center";
         g.textBaseline = "middle";
         g.fillText(text, width / 2, height * 0.54, width * 0.92);
       });
-      pending.push(() => {
-        sign.repaint();
-        sign.texture.needsUpdate = true;
-      });
+      // The web font comes in slices by character, so wait for the ones
+      // this text needs before painting it again.
+      document.fonts
+        ?.load(font, text)
+        .then(() => {
+          sign.repaint();
+          sign.texture.needsUpdate = true;
+          wake();
+        })
+        .catch(() => {});
       return sign.texture;
     },
     scutes: art.scutes.texture,
     screen: art.screen.texture,
     staff: art.staff.texture,
   };
-  document.fonts
-    ?.load('900 40px "Noto Sans TC"')
-    .then(() => {
-      for (const repaint of pending) repaint();
-      wake();
-    })
-    .catch(() => {});
 
   // --- Sky and sea ------------------------------------------------------------
   const skyMaterial = new ShaderMaterial({
@@ -1627,7 +1627,7 @@ export function createIslandWorld(
       island: "you",
     });
   }
-  // Nothing grows where an animal lives (the cat's bed by the desk).
+  // Nothing grows where an animal lives (the cat and the rabbit by the desk).
   scene.updateMatrixWorld(true);
   const dens = landmarks.flatMap(({ model }) =>
     (model.pets ?? []).map((pet) => pet.group.getWorldPosition(new Vector3())),
@@ -2428,9 +2428,12 @@ export function createIslandWorld(
     return {
       // On a tall phone stage the HUD fills the top and the lion's bubble
       // the bottom, so the landmark sits a little higher.
-      target: item.at
-        .clone()
-        .setY(TOP + item.model.height * 0.42 - (wide ? 0 : 0.3)),
+      target:
+        wide && item.model.aim
+          ? item.at.clone().add(item.model.aim)
+          : item.at
+              .clone()
+              .setY(TOP + item.model.height * 0.42 - (wide ? 0 : 0.3)),
       yaw: island === "l" ? -0.45 : wide ? 0.42 : 0.2,
       pitch: 0.36,
       distance: (reach / Math.sin((FOV * Math.PI) / 360)) * (wide ? 1.15 : 1.5),
@@ -2686,17 +2689,32 @@ export function createIslandWorld(
   };
   const pokeCritter = (critter: Critter, t: number) => {
     if (critter.motion.mode !== "home") return;
-    if (!still) critter.boing = t;
-    // Four pets in a row is one too many for the cat.
-    const mad = critter.id === "cat" && inARow("cat", t, 4, 6);
-    if (!still) critter.poke?.(t, mad);
+    const { id } = critter;
+    // The rabbit jumps for itself (a binky); the others hop.
+    if (!still && id !== "bunny") critter.boing = t;
+    // Four pets in a row is one too many for the cat and the rabbit.
+    const mad = (id === "cat" || id === "bunny") && inARow(id, t, 4, 6);
+    // Rabbits are liveliest at dawn and dusk.
+    const glad =
+      id === "bunny" &&
+      !mad &&
+      (daypart === "morning" || daypart === "evening");
+    if (!still) critter.poke?.(t, mad ? "mad" : glad ? "glad" : undefined);
     const eggs: EggId[] =
-      critter.id !== "cat" || mad
-        ? []
-        : now.glow > 0.5
-          ? ["cat-night", "cat-pet"]
-          : ["cat-pet"];
-    events.play(critter.id, mad ? "mad" : "poke", eggs);
+      id === "cat"
+        ? mad
+          ? []
+          : now.glow > 0.5
+            ? ["cat-night", "cat-pet"]
+            : ["cat-pet"]
+        : id === "bunny"
+          ? mad
+            ? ["bunny-thump"]
+            : glad
+              ? ["bunny-dusk", "bunny-binky"]
+              : ["bunny-binky"]
+          : [];
+    events.play(id, mad ? "mad" : "poke", eggs);
     wake();
   };
   const click = (clientX: number, clientY: number) => {
@@ -2873,20 +2891,51 @@ export function createIslandWorld(
     );
     wake();
   };
+  // Put down by the cat, the rabbit sits next to it (not on it) and turns to
+  // it, and they both light up for a while before it hops home.
+  const catAt = new Vector3();
+  const besideCat = (critter: Critter) => {
+    const cat = critters.find((one) => one.id === "cat");
+    if (!cat) return null;
+    const at = critter.group.position;
+    cat.group.getWorldPosition(catAt);
+    const gap = Math.hypot(at.x - catAt.x, at.z - catAt.z);
+    if (gap > 0.6) return null;
+    if (gap < 0.42) {
+      const a = gap > 0.01 ? Math.atan2(at.x - catAt.x, at.z - catAt.z) : -1.6;
+      const x = catAt.x + Math.sin(a) * 0.42;
+      const z = catAt.z + Math.cos(a) * 0.42;
+      const floor = floorAt(x, z);
+      if (floor > 0) at.set(x, floor, z);
+    }
+    return cat;
+  };
   const landed = (critter: Critter, t: number, wet: boolean) => {
     if (wet && !still) splash(critter.group.position, t);
+    let stay = critter.kind === "sea" ? 1.6 : 0.9;
     if (critter.id === "cat")
       events.play("cat", wet ? "wet" : "land", wet ? ["cat-water"] : undefined);
     else if (critter.id === "turtle" && !wet)
       events.play("turtle", "land", ["turtle-land"]);
+    else if (critter.id === "bunny") {
+      const cat = wet ? null : besideCat(critter);
+      if (cat && !still) {
+        const at = critter.group.position;
+        critter.group.rotation.y = Math.atan2(catAt.x - at.x, catAt.z - at.z);
+        critter.poke?.(t);
+        cat.poke?.(t);
+      }
+      if (cat) stay = 2.4;
+      events.play(
+        "bunny",
+        wet ? "wet" : "land",
+        cat ? ["bunny-friends"] : undefined,
+      );
+    }
     critter.motion =
       critter.kind === "sea" && wet
         ? hopHome(critter, t)
-        : {
-            mode: "rest",
-            until: t + (critter.kind === "sea" ? 1.6 : 0.9),
-            wet,
-          };
+        : { mode: "rest", until: t + stay, wet };
     if (still) arrive(critter, t);
   };
   const letGo = () => {
@@ -3587,15 +3636,17 @@ export function createIslandWorld(
         looked
       ];
       if (!item) return;
-      // Where an animal lives at the landmark, every other press is for it.
+      // Where animals live at the landmark, every other press is for one of
+      // them, in turn.
       const turn = (presses.get(item) ?? 0) + 1;
       presses.set(item, turn);
-      const pet = critters.find(
+      const pets = critters.filter(
         (critter) =>
           critter.motion.mode === "home" &&
           item.model.pets?.some((one) => one.group === critter.group),
       );
-      if (pet && turn % 2 === 0) pokeCritter(pet, clock());
+      if (pets.length && turn % 2 === 0)
+        pokeCritter(pets[(turn / 2 - 1) % pets.length], clock());
       else pokeLandmark(item, clock());
     },
     party() {

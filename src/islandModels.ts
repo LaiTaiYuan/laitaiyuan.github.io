@@ -92,6 +92,9 @@ export function tones(c: Tokens) {
     catEye: mix(c.yellow, c.green, 0.4),
     catEyeGlow: mix(c.yellowLight, c.green, 0.3),
     cushion: mix(c.white, c.sky, 0.16),
+    bunny: mix(c.white, c.paper, 0.3),
+    bunnyBelly: mix(c.paper, c.coral, 0.1),
+    bunnyMark: mix(c.coral, c.ink, 0.3),
   };
 }
 export type Tones = ReturnType<typeof tones>;
@@ -134,6 +137,9 @@ export type Model = {
   group: Group;
   // Height of the top of the model, for the pin above it.
   height: number;
+  // Where a close-up on a wide stage looks, if not a little below halfway
+  // up: the lion's bubble covers the bottom left corner there.
+  aim?: Vector3;
   tick?(t: number, view: Vector3): void;
   // A click or tap on the landmark; `big` for the one that sets off its
   // easter egg (the world counts the pokes).
@@ -155,8 +161,9 @@ export type Pet = {
   reach: number;
   settle: number;
   lift?(held: boolean, t: number): void;
-  // A click or tap; `mad` when it was one poke too many.
-  poke?(t: number, mad?: boolean): void;
+  // A click or tap: "mad" when it was one poke too many, "glad" when the
+  // animal is at its liveliest (the rabbit at dawn and dusk).
+  poke?(t: number, mood?: "mad" | "glad"): void;
 };
 
 // --- Geometry helpers -------------------------------------------------------
@@ -220,6 +227,19 @@ const rings = (
       )
       .translate(p.x, p.y, p.z);
   });
+};
+// Texture coordinates projected straight on from the front, so a picture
+// lands undistorted on a rounded part: x and y from -r to r map to 0 to 1.
+const facing = (geometry: BufferGeometry, r: number) => {
+  const position = geometry.getAttribute("position");
+  const uv = geometry.getAttribute("uv");
+  for (let k = 0; k < position.count; k++)
+    uv.setXY(
+      k,
+      position.getX(k) / (2 * r) + 0.5,
+      position.getY(k) / (2 * r) + 0.5,
+    );
+  return geometry;
 };
 // A flat shape lying in the xz-plane, `depth` thick, from (x, z) points.
 const slab = (
@@ -299,6 +319,10 @@ const slowBlink = (s: number) =>
       : Math.min(1, 0.12 + ((s - 0.75) / 0.45) * 0.88);
 const spring = (x: number) =>
   x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.cos(x * Math.PI * 2.5) * Math.exp(-x * 6);
+const smooth = (x: number) => {
+  const k = Math.min(1, Math.max(0, x));
+  return k * k * (3 - 2 * k);
+};
 
 // --- Lions ------------------------------------------------------------------
 
@@ -450,7 +474,8 @@ function lionHead(kit: Kit, options: { glasses?: boolean; phones?: boolean }) {
 
 // Leonard's lion at his desk: typing, nodding along to his headphones,
 // looking up at whoever is watching, and now and then struck by an idea.
-// The orange-and-white cat naps in its bed by the desk.
+// The orange-and-white cat naps in its bed by the desk, and the white rabbit
+// sits in front of it with its carrot.
 export function lionDesk(kit: Kit): Model {
   const { c } = kit;
   const group = new Group();
@@ -593,6 +618,27 @@ export function lionDesk(kit: Kit): Model {
   );
   const cat = gingerCat(kit);
   put(bed, cat.pet.group, 0, 0.065, 0).rotation.y = 0.15;
+  // The rabbit, turned a little towards the usual view, and its carrot
+  // lying in the grass: a root, its shoulder and a tuft of leaves.
+  const bunny = whiteRabbit(kit);
+  put(group, bunny.pet.group, -0.04, 0, 0.8).rotation.y = 0.28;
+  const carrot = put(group, new Group(), 0.17, 0.03, 1.0);
+  carrot.rotation.set(0, -0.7, 0.12);
+  const root = new ConeGeometry(0.03, 0.17, 12);
+  root.rotateZ(Math.PI / 2);
+  put(carrot, kit.solid(root, kit.paint(c.ginger), 1.1), 0, 0, 0);
+  for (let k = 0; k < 3; k++) {
+    const leaf = new ConeGeometry(0.013, 0.08, 6);
+    leaf.translate(0, 0.04, 0);
+    const blade = put(
+      carrot,
+      kit.solid(leaf, kit.paint(c.leaf), 1),
+      0.085,
+      0,
+      (k - 1) * 0.012,
+    );
+    blade.rotation.set((k - 1) * 0.5, 0, -1.25 + Math.abs(k - 1) * 0.2);
+  }
 
   // The lion.
   const body = put(group, new Group(), 0, 0.37, -0.14);
@@ -676,7 +722,9 @@ export function lionDesk(kit: Kit): Model {
   return {
     group,
     height: 1.55,
-    pets: [cat.pet],
+    // Lower and further forward, so the cat and the rabbit clear the bubble.
+    aim: new Vector3(0, 0.5, 0.35),
+    pets: [cat.pet, bunny.pet],
     poke(t) {
       poked = t;
     },
@@ -735,6 +783,7 @@ export function lionDesk(kit: Kit): Model {
           Math.sin(life * Math.PI) * (typing ? 1 : 0.4);
       });
       cat.tick(t, view, spark);
+      bunny.tick(t, view, spark);
     },
   };
 }
@@ -960,8 +1009,8 @@ export function gingerCat(kit: Kit): Cat {
       head.position.copy(held ? hangHead : rest);
       lifted = held ? t : -1;
     },
-    poke(t, cross) {
-      if (cross) mad = t;
+    poke(t, mood) {
+      if (mood === "mad") mad = t;
       else petted = t;
     },
   };
@@ -1025,6 +1074,310 @@ export function gingerCat(kit: Kit): Cat {
         heart.scale.setScalar(0.13 * Math.min(1, life * 5) * (1 - life * 0.4));
         (heart.material as SpriteMaterial).opacity = Math.min(1, (1 - life) * 3);
       });
+    },
+  };
+}
+
+// --- The white rabbit -----------------------------------------------------------
+
+export type Bunny = {
+  pet: Pet;
+  // `bulb`: how brightly the lion's idea is lit; the rabbit sits up for it.
+  tick(t: number, view: Vector3, bulb: number): void;
+};
+
+// A little white rabbit with 「沛」 on its tummy (Leonard asked for one,
+// 2026-10-25). It sits in front of the lion's desk by its carrot, nose
+// twitching and ears turning one at a time, watching whoever is looking,
+// and sits up tall when the lion has an idea. Petted, it does a binky, a
+// happy jump with a twist in mid-air (three in a row at dawn and dusk, when
+// rabbits are liveliest); petted once too often, it thumps its hind feet
+// and turns its back. Picked up, its feet dangle and its ears fold back.
+export function whiteRabbit(kit: Kit): Bunny {
+  const { c } = kit;
+  const group = live(new Group());
+  const fur = kit.paint(c.bunny);
+  const pink = kit.paint(c.catNose);
+  // The tummy patch with 「沛」, in the site's heavy font.
+  const tummy = kit.textured(
+    kit.words(
+      "沛",
+      256,
+      256,
+      `#${c.bunnyMark.getHexString()}`,
+      `#${c.bunnyBelly.getHexString()}`,
+    ),
+  );
+  const belly = facing(ball(0.092, 24, 18), 0.092);
+  // Jumps, twists and a turned back move all of it but the hearts.
+  const body = live(put(group, new Group(), 0, 0, 0));
+
+  // Sitting: a pear-shaped body on big flat hind feet, round haunches, the
+  // front paws together under the tummy and a cotton tail.
+  const sit = live(put(body, new Group(), 0, 0, 0));
+  const torso = lathe([
+    [0, 0],
+    [0.09, 0.006],
+    [0.128, 0.04],
+    [0.138, 0.095],
+    [0.126, 0.152],
+    [0.098, 0.2],
+    [0.058, 0.232],
+    [0, 0.242],
+  ]);
+  put(sit, kit.solid(torso, fur, 1.4), 0, 0, -0.01).scale.z = 0.94;
+  for (const side of [-1, 1]) {
+    put(
+      sit,
+      kit.solid(ball(0.078, 16, 12), fur, 1.2),
+      side * 0.088,
+      0.072,
+      -0.035,
+    ).scale.set(0.82, 0.92, 1.12);
+    put(
+      sit,
+      kit.solid(ball(0.05, 14, 10), fur, 1.1),
+      side * 0.085,
+      0.022,
+      0.07,
+    ).scale.set(0.72, 0.42, 1.55);
+    put(
+      sit,
+      kit.solid(ball(0.028, 12, 10), fur, 1),
+      side * 0.052,
+      0.03,
+      0.116,
+    ).scale.set(0.95, 0.85, 1.2);
+  }
+  put(sit, kit.solid(belly, tummy, 1), 0, 0.13, 0.07).scale.set(1, 1.08, 0.6);
+  put(sit, kit.solid(ball(0.048, 12, 10), fur, 1.2), 0, 0.075, -0.135);
+
+  // The head: round and soft, with a twitching pink nose, blush, shiny dark
+  // eyes and two buck teeth.
+  const head = live(put(body, new Group(), 0, 0.3, 0.018));
+  const rest = head.position.clone();
+  put(head, kit.solid(ball(0.105, 22, 16), fur, 1.3), 0, 0, 0).scale.set(
+    1.12,
+    0.96,
+    1,
+  );
+  const smile = new TorusGeometry(0.012, 0.0034, 4, 10, Math.PI);
+  smile.rotateZ(Math.PI);
+  for (const side of [-1, 1]) {
+    put(
+      head,
+      kit.solid(ball(0.045, 14, 10), fur, 1),
+      side * 0.033,
+      -0.04,
+      0.07,
+    ).scale.set(1.1, 0.85, 0.9);
+    put(
+      head,
+      kit.solid(ball(0.024, 10, 8), kit.paint(c.blush), null),
+      side * 0.074,
+      -0.026,
+      0.074,
+    ).scale.set(1.2, 0.7, 0.5);
+    put(
+      head,
+      kit.solid(rounded(0.013, 0.018, 0.008, 0.003), fur, 1),
+      side * 0.0072,
+      -0.071,
+      0.088,
+    );
+    put(
+      head,
+      kit.solid(smile, kit.paint(c.ink), null),
+      side * 0.012,
+      -0.034,
+      0.108,
+    );
+  }
+  const nose = live(put(head, new Group(), 0, -0.012, 0.104));
+  put(nose, kit.solid(ball(0.016, 10, 8), pink, null), 0, 0, 0).scale.set(
+    1.35,
+    0.9,
+    0.8,
+  );
+  const eyes = live(put(head, new Group(), 0, 0.02, 0.083));
+  eyes.scale.z = 0.8;
+  for (const side of [-1, 1]) {
+    put(
+      eyes,
+      kit.solid(ball(0.026, 14, 10), kit.paint(c.ink), null),
+      side * 0.048,
+      0,
+      0,
+    );
+    put(
+      eyes,
+      kit.solid(ball(0.009, 6, 5), kit.paint(c.white, 0.6), null),
+      side * 0.048 - 0.009,
+      0.01,
+      0.021,
+    );
+  }
+  // Long ears that turn on their own, each to its own sound.
+  const ears = [-1, 1].map((side) => {
+    const ear = live(put(head, new Group(), side * 0.046, 0.068, -0.014));
+    ear.rotation.order = "ZXY";
+    put(ear, kit.solid(pill(0.031, 0.13), fur, 1.2), 0, 0.094, 0).scale.z =
+      0.52;
+    put(ear, kit.solid(pill(0.018, 0.1), pink, null), 0, 0.09, 0.012).scale.z =
+      0.36;
+    return { ear, side };
+  });
+
+  // Picked up: held under the front legs, the body hanging long below and
+  // the hind feet dangling (and kicking at first).
+  const dangle = live(put(body, new Group(), 0, 0, 0));
+  dangle.visible = false;
+  put(dangle, kit.solid(pill(0.105, 0.1), fur, 1.4), 0, -0.12, -0.01).scale.z =
+    0.9;
+  put(dangle, kit.solid(belly, tummy, 1), 0, -0.1, 0.04).scale.set(
+    0.95,
+    1.12,
+    0.55,
+  );
+  put(dangle, kit.solid(ball(0.046, 12, 10), fur, 1.2), 0, -0.2, -0.105);
+  for (const side of [-1, 1])
+    put(
+      dangle,
+      kit.solid(pill(0.026, 0.06), fur, 1),
+      side * 0.088,
+      -0.02,
+      0.04,
+    ).rotation.z = side * 0.5;
+  const legs = [-1, 1].map((side) => {
+    const leg = live(put(dangle, new Group(), side * 0.06, -0.22, 0.01));
+    put(leg, kit.solid(pill(0.036, 0.07), fur, 1.1), 0, -0.05, 0);
+    put(
+      leg,
+      kit.solid(ball(0.04, 12, 10), fur, 1.1),
+      0,
+      -0.1,
+      0.03,
+    ).scale.set(0.75, 0.6, 1.5);
+    return leg;
+  });
+  const hangHead = new Vector3(0, 0.04, 0.02);
+
+  const hearts = [0, 1, 2].map(() => {
+    const heart = put(group, kit.icon("heart", 0.12), 0, 0, 0);
+    heart.visible = false;
+    return heart;
+  });
+  // Puffs of dust either side of its feet when they thump.
+  const dust = [-1, 1].map((side) => {
+    const puff = put(group, kit.puff(0.3), side * 0.17, 0.05, 0.06);
+    puff.visible = false;
+    return { puff, side };
+  });
+  const local = new Vector3();
+  const seed = Math.random() * 10;
+  let lifted = -1;
+  let petted = -10;
+  let hops = 1;
+  let mad = -10;
+  const pet: Pet = {
+    id: "bunny",
+    group,
+    hang: 0,
+    reach: 0.4,
+    settle: 0.3,
+    lift(held, t) {
+      sit.visible = !held;
+      dangle.visible = held;
+      head.position.copy(held ? hangHead : rest);
+      lifted = held ? t : -1;
+    },
+    poke(t, mood) {
+      if (mood === "mad") mad = t;
+      else {
+        petted = t;
+        hops = mood === "glad" ? 3 : 1;
+      }
+    },
+  };
+
+  return {
+    pet,
+    tick(t, view, bulb) {
+      const held = lifted >= 0;
+      // Thumped twice, then sulking with its back turned for a while.
+      const sulk = t - mad;
+      const cross = sulk < 3.4;
+      const thump =
+        cross && sulk < 0.6 ? Math.sin(((sulk % 0.3) / 0.3) * Math.PI) : 0;
+      const away = cross
+        ? smooth((sulk - 0.6) / 0.45) * smooth((3.4 - sulk) / 0.45)
+        : 0;
+      // A binky: up, a twist in mid-air (the other way each time), down.
+      const since = t - petted;
+      const hop = since >= 0 && since < hops * 0.6 ? since % 0.6 : -1;
+      const air = hop >= 0 && hop < 0.48 ? Math.sin((hop / 0.48) * Math.PI) : 0;
+      const twist = air * (Math.floor(since / 0.6) % 2 ? -1 : 1);
+      // Sits up tall to see the lion's idea.
+      const tall = cross || held ? 0 : Math.min(1, bulb * 1.6);
+      body.position.y = air * 0.24 + thump * 0.035;
+      body.rotation.x = thump * 0.1;
+      body.rotation.y = twist * 0.6 + away * Math.PI;
+      // Quick breaths, as rabbits take them.
+      sit.scale.y = 1 + Math.sin(t * 3.1 + seed) * 0.016 + tall * 0.14;
+      if (!held) head.position.y = rest.y + tall * 0.035;
+      // Watches whoever is looking, unless it is sulking or held up.
+      const look = cross || held ? 0 : 1;
+      body.worldToLocal(local.copy(view)).sub(head.position);
+      const yaw = Math.max(-0.8, Math.min(0.8, Math.atan2(local.x, local.z)));
+      const pitch = Math.max(
+        -0.35,
+        Math.min(0.7, Math.atan2(local.y, Math.hypot(local.x, local.z))),
+      );
+      head.rotation.y = yaw * look - twist * 0.9;
+      head.rotation.x = -(pitch * 0.7 + tall * 0.25) * look;
+      head.rotation.z = Math.sin(t * 0.8 + seed) * 0.08 * look + twist * 0.2;
+      eyes.scale.y = cross ? 0.45 : air > 0.2 ? 0.15 : blink(t, seed);
+      // The nose never stops for long: quick twitches in bursts, faster
+      // after a pet.
+      const sniffing = held || since < 2.5 || (t * 0.7 + seed) % 2.4 < 1.5;
+      const twitch = sniffing ? Math.sin(t * (since < 2.5 ? 40 : 28)) : 0;
+      nose.position.y = -0.012 + twitch * 0.0035;
+      nose.scale.set(1 + Math.abs(twitch) * 0.12, 1 - Math.abs(twitch) * 0.08, 1);
+      for (const { ear, side } of ears) {
+        const scan = Math.sin(t * 0.55 + seed * 1.3 + side * 2.1);
+        const beat = (t + seed + (side > 0 ? 3.1 : 0)) % 6.3;
+        const flick = beat < 0.25 ? Math.sin((beat / 0.25) * Math.PI) : 0;
+        ear.rotation.y = cross || held ? 0 : scan * 0.45;
+        ear.rotation.x = held
+          ? -1.05
+          : cross
+            ? -1.25
+            : -0.06 - air * 0.55 + tall * 0.12 - flick * 0.25;
+        ear.rotation.z = -side * (held ? 0.35 : cross ? 0.15 : 0.14 + air * 0.25);
+      }
+      if (held) {
+        const s = t - lifted;
+        const kick = s < 1.2 ? Math.sin(s * 16) * (1 - s / 1.2) : 0;
+        legs.forEach((leg, k) => {
+          leg.rotation.x = kick * (k ? 0.5 : -0.5) + Math.sin(t * 2 + k) * 0.06;
+        });
+      }
+      hearts.forEach((heart, k) => {
+        const life = (since - 0.35 - k * 0.3) / 1.3;
+        heart.visible = !cross && life > 0 && life < 1;
+        if (!heart.visible) return;
+        heart.position.set((k - 1) * 0.08, 0.6 + life * 0.3, 0.02);
+        heart.scale.setScalar(0.12 * Math.min(1, life * 5) * (1 - life * 0.4));
+        (heart.material as SpriteMaterial).opacity = Math.min(1, (1 - life) * 3);
+      });
+      const puffed = cross ? sulk / 0.9 : 1;
+      for (const { puff, side } of dust) {
+        puff.visible = puffed < 1;
+        if (!puff.visible) continue;
+        puff.position.x = side * (0.17 + puffed * 0.12);
+        puff.scale.setScalar(0.14 + puffed * 0.26);
+        (puff.material as SpriteMaterial).opacity = 1 - puffed;
+      }
     },
   };
 }

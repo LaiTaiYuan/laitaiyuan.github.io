@@ -6,7 +6,8 @@
 // life and engineering humour. They never claim a result, number or
 // experience that docs/content-sources.md does not list; the animal facts are
 // common knowledge (the leopard cat is protected, the blue magpie and the
-// black bear are Taiwan's own). Use emoji every system already draws.
+// black bear are Taiwan's own, a rabbit thumps its feet when upset). Use
+// emoji every system already draws.
 
 export type PlayId =
   | "l0"
@@ -23,6 +24,7 @@ export type PlayId =
   | "i3"
   | "you0"
   | "cat"
+  | "bunny"
   | "bear"
   | "leopard"
   | "robot"
@@ -171,6 +173,20 @@ export const playLines: Record<
     wet: ["喵嗚！最討厭水了 💦", "濕答答的，要吹乾才能睡"],
     mad: ["哈！摸夠了啦 😾", "尾巴甩成這樣，是在生氣喔"],
   },
+  bunny: {
+    name: "小白兔",
+    poke: [
+      "鼻子動個不停，是在聞你有沒有帶點心 🥕",
+      "兩隻耳朵各轉各的，雷達全開 📡",
+      "開心就跳一下，比 hotfix 上線還開心 🐰",
+      "紅蘿蔔是點心，牧草才是正餐喔 🌾",
+      "兔子的門牙會一直長，所以要一直啃",
+    ],
+    lift: ["抱兔子要托住屁股，不能抓耳朵喔 🐰", "腳懸空會緊張，抱穩一點"],
+    land: ["安全降落！兔子的後腳很有力 🐾", "先聞聞看，這裡是哪裡 👃"],
+    wet: ["兔子不愛泡水，快拿毛巾！🧻", "濕答答的兔子，要趕快擦乾"],
+    mad: ["咚咚！跺腳抗議中 😤", "轉過身去，用屁股對著你了"],
+  },
   bear: {
     name: "黑熊店長",
     poke: [
@@ -238,6 +254,10 @@ export type EggId =
   | "cat-liquid"
   | "cat-water"
   | "cat-night"
+  | "bunny-binky"
+  | "bunny-thump"
+  | "bunny-friends"
+  | "bunny-dusk"
   | "star-dizzy"
   | "tower-fall"
   | "cloud-rain"
@@ -279,6 +299,30 @@ export const islandEggs: readonly {
     name: "夜貓子",
     line: "夜貓子出沒！眼睛亮得跟車燈一樣 🌙",
     hint: "天黑之後去摸摸貓，牠的眼睛會發光",
+  },
+  {
+    id: "bunny-binky",
+    name: "開心跳 binky",
+    line: "小白兔開心到跳起來扭一下，這叫 binky ✨",
+    hint: "摸摸桌前肚子上寫著「沛」的小白兔",
+  },
+  {
+    id: "bunny-thump",
+    name: "兔子跺腳",
+    line: "咚咚！兔子用後腳跺地，是在說「我不高興了」😤",
+    hint: "小白兔被摸太多次，會怎麼抗議？",
+  },
+  {
+    id: "bunny-friends",
+    name: "貓兔好朋友",
+    line: "小白兔跑去找貓咪，兩個都冒出愛心了 💕",
+    hint: "把小白兔抱到貓咪旁邊放下",
+  },
+  {
+    id: "bunny-dusk",
+    name: "晨昏兔",
+    line: "兔子在清晨跟黃昏最有精神，連跳三下！🌅",
+    hint: "天剛亮或快天黑的時候，找小白兔玩",
   },
   {
     id: "star-dizzy",
