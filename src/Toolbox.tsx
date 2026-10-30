@@ -908,6 +908,8 @@ export default function Toolbox() {
                   type="button"
                   key={item.id}
                   aria-pressed={category === item.id}
+                  data-track={`tools/category/${item.id}`}
+                  data-track-title={`分類：${item.label}`}
                   onClick={() => changeCategory(item.id)}
                 >
                   <Icon name={item.icon} />

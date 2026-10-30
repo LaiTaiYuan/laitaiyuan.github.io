@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { track } from "./analytics";
 import { brandLogo } from "./data/brandMark";
 import { allEggsLine, islandEggs, playLines } from "./data/islandPlay";
 import type { EggId, PlayAct, PlayId } from "./data/islandPlay";
@@ -274,6 +275,9 @@ function useIslandPlay() {
         foundRef.current = next;
         setFound(next);
         storage.set(JSON.stringify([...next]));
+        track(`island/egg/${egg.id}`, `彩蛋：${egg.name}`);
+        if (next.size === islandEggs.length)
+          track("island/egg/all", "彩蛋全部找到");
         speak(`彩蛋：${egg.name}`, egg.line);
         setToast({
           key: count.current,
@@ -285,6 +289,7 @@ function useIslandPlay() {
         return;
       }
       const entry = playLines[id];
+      track(`island/play/${id}`, `玩：${entry.name}`);
       const lines = entry[act] ?? entry.poke;
       const key = `${id}.${act}`;
       const turn = told.current.get(key) ?? 0;
@@ -374,6 +379,14 @@ export function IslandsSection() {
   const hudRef = useRef<HTMLDivElement>(null);
   const current = islands.find((island) => island.id === focus);
   const looking = look === null ? undefined : current?.spots[look];
+  // Which islands, and which stories on them, people open.
+  useEffect(() => {
+    if (current) track(`island/visit/${current.id}`, `上島：${current.name}`);
+  }, [current]);
+  useEffect(() => {
+    if (current && looking)
+      track(`island/look/${current.id}${look}`, `看：${looking.name}`);
+  }, [current, look, looking]);
   const toggleLook = (index: number) =>
     setLook((value) => (value === index ? null : index));
   const onKeyDown = (event: KeyboardEvent) => {
@@ -529,6 +542,8 @@ export function IslandsSection() {
                   className="isl-eggs"
                   aria-label={`彩蛋：找到 ${fun.found.size} 個，共 ${islandEggs.length} 個。聽一個提示`}
                   title="彩蛋提示"
+                  data-track="island/hint"
+                  data-track-title="聽彩蛋提示"
                   onClick={() => fun.out(fun.hint)}
                 >
                   <span aria-hidden="true">🥚</span>

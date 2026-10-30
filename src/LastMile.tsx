@@ -122,6 +122,8 @@ export default function LastMile() {
               <a
                 className="mile-cue"
                 href="#mile-prologue"
+                data-track="mile/start"
+                data-track-title="開始這一哩路"
                 onClick={(event) => {
                   if (!film.live) return;
                   event.preventDefault();
@@ -223,6 +225,7 @@ export default function LastMile() {
                     aria-current={
                       film.scene === sceneOfStop(index + 1) ? "step" : undefined
                     }
+                    data-track={`mile/stop/${index + 1}`}
                     onClick={() => film.goTo(sceneOfStop(index + 1))}
                   >
                     <span />

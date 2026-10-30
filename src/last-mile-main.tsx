@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { startAnalytics } from "./analytics";
 import LastMile from "./LastMile";
 import "./toolbox.css";
 import "./lastMile.css";
@@ -13,3 +14,4 @@ const app = (
 );
 if (container.hasChildNodes()) hydrateRoot(container, app);
 else createRoot(container).render(app);
+startAnalytics();

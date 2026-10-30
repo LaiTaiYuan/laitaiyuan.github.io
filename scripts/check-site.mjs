@@ -79,6 +79,15 @@ const mile = await readFile("dist/last-mile/index.html", "utf8");
 assert(mile.includes("我的人生"), "Last mile page renders its title");
 assert(home.includes("last-mile/"), "Homepage links to the last mile page");
 const files = await readdir("dist", { recursive: true });
+const bundles = await Promise.all(
+  files
+    .filter((file) => file.endsWith(".js"))
+    .map((file) => readFile(`dist/${file}`, "utf8")),
+);
+assert(
+  bundles.some((code) => code.includes("leonardlai.goatcounter.com/count")),
+  "Pages count visits on GoatCounter",
+);
 const socialImage = await readFile("dist/og-image.png");
 assert.equal(socialImage.readUInt32BE(16), 1200, "Share image width");
 assert.equal(socialImage.readUInt32BE(20), 630, "Share image height");

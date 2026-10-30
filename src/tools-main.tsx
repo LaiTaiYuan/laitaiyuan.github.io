@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { startAnalytics } from "./analytics";
 import Toolbox from "./Toolbox";
 import "./toolbox.css";
 
@@ -18,3 +19,4 @@ const app = (
 );
 if (container.hasChildNodes()) hydrateRoot(container, app);
 else createRoot(container).render(app);
+startAnalytics();

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { track } from "./analytics";
 import lion from "./data/lionScene.json";
 import { mileRests, mileSongs, mileStops, mileSubtitle } from "./data/lastMile";
 import { lionMotto } from "./data/lionQuips";
@@ -268,6 +269,7 @@ function LionScene({
         style={sceneRect(605, 30, 985, 405)}
         aria-label="戳一下獅子，聽牠說句話"
         data-cursor="戳一下 ✦"
+        data-track="lion/poke"
         onClick={head.poke}
         onPointerEnter={head.greet}
       />
@@ -509,6 +511,11 @@ function StackGameSection() {
   const rank =
     stackRanks.find((item) => game.score >= item.min) ??
     stackRanks[stackRanks.length - 1];
+  useEffect(() => {
+    if (game.status === "playing") track("game/start", "開始玩疊疊樂");
+    if (game.status === "over")
+      track(`game/rank/${rank.min}`, `疊疊樂：${rank.title}`);
+  }, [game.status, rank]);
   const startFromButton = () => {
     game.press();
     game.stageRef.current?.focus({ preventScroll: true });
@@ -1259,6 +1266,8 @@ export default function Home() {
               ) : (
                 <button
                   className="lp-button lp-button-small"
+                  data-track="music/player"
+                  data-track-title="開啟 Spotify 播放器"
                   onClick={() => setShowPlayer(true)}
                   aria-expanded="false"
                 >
