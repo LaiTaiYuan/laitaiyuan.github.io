@@ -26,6 +26,9 @@ export type Island = {
   id: IslandId;
   letter: string;
   name: string;
+  // What the name's last character also sounds like, shown small after the
+  // name as Leonard wrote it: 賴島(導).
+  pun?: string;
   line: string;
   // What the lion says while the camera is over this island.
   lion: string;
@@ -105,9 +108,15 @@ export const islands: readonly Island[] = [
   {
     id: "i",
     letter: "I",
-    name: "我的島",
-    line: "I 就是我：聽故事、寫故事的地方。",
-    lion: "戴上耳機，這座島比較好聽 🎧",
+    // The whole island is 賴島(導): 賴島 sounds just like 賴導, Director Lai,
+    // and as a child Leonard wanted to be a film director
+    // (docs/content-sources.md). He asked for the name and a funny way to let
+    // it slip, 2026-10-30.
+    name: "賴島",
+    pun: "導",
+    line: "I 就是我：聽故事、寫故事的地方。島名唸起來是「賴導」，不是巧合。",
+    // A slip of the Zhuyin keyboard: 島 and 導 are typed the same way.
+    lion: "歡迎來到賴導……選錯字了，是賴島啦 🎬",
     spots: [
       {
         name: "獅子工作桌",
@@ -132,6 +141,14 @@ export const islands: readonly Island[] = [
         text: `一輩子要完成的夢想：把身邊的人都寫成歌，已完成 ${mileSongs} 首。這條五線譜公路一路開向地平線。`,
         link: { label: "走這一哩路", href: `${base}last-mile/` },
         at: [189, 33],
+      },
+      {
+        name: "導演椅",
+        text: "小時候的夢想之一是當導演。長大先當了島主，唸起來一樣，算圓夢一半。椅背寫著「賴導」，人卻不在：他正在書桌前寫程式、寫歌，整座島都是片場。",
+        link: { label: "看 LAI 標誌開拍", href: "#mark" },
+        // On the west half, clear of the record shop's close-up; its own
+        // close-up comes from the sea to the east (directorSet's `yaw`).
+        at: [186, 126],
       },
     ],
   },

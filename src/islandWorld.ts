@@ -62,6 +62,7 @@ import {
   careBot,
   cloudTower,
   database,
+  directorSet,
   dolphin,
   familyHome,
   flora,
@@ -1067,6 +1068,48 @@ export function createIslandWorld(
       sprite.scale.setScalar(size);
       return sprite;
     },
+    burst(text, size, paper = tokens.hex.yellow) {
+      // The brand stage's burst (BrandMark.tsx), wider than it is tall.
+      const font = `italic 900 ${text.length > 3 ? 46 : 64}px "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
+      const art = drawn(256, 160, (g) => {
+        g.clearRect(0, 0, 256, 160);
+        g.beginPath();
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * Math.PI * 2;
+          const r = k % 2 ? 0.7 : k % 4 ? 0.9 : 1;
+          g.lineTo(128 + Math.cos(a) * r * 122, 80 + Math.sin(a) * r * 76);
+        }
+        g.closePath();
+        g.fillStyle = paper;
+        g.strokeStyle = tokens.hex.ink;
+        g.lineWidth = 7;
+        g.lineJoin = "round";
+        g.fill();
+        g.stroke();
+        g.fillStyle = tokens.hex.ink;
+        g.font = font;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillText(text, 128, 84, 178);
+      });
+      document.fonts
+        ?.load(font, text)
+        .then(() => {
+          art.repaint();
+          art.texture.needsUpdate = true;
+          wake();
+        })
+        .catch(() => {});
+      const sprite = new Sprite(
+        new SpriteMaterial({
+          map: art.texture,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      sprite.scale.set(size * 1.6, size, 1);
+      return sprite;
+    },
     icon(name, size) {
       const sprite = new Sprite(
         new SpriteMaterial({
@@ -1287,6 +1330,7 @@ export function createIslandWorld(
       () => recordPlayer(kit),
       () => toolShop(kit),
       () => staffRoad(kit, TOP),
+      () => directorSet(kit),
     ],
     you: [() => storySign(kit)],
   };
@@ -1545,9 +1589,20 @@ export function createIslandWorld(
   }
 
   // --- Trees, flowers and rocks -------------------------------------------------
-  const keepClear: Point[] = islands.flatMap((island) =>
-    island.spots.map((spot) => spot.at),
-  );
+  const keepClear: Point[] = [
+    ...islands.flatMap((island) => island.spots.map((spot) => spot.at)),
+    // A landmark with a close-up of its own keeps the way to it clear too.
+    ...landmarks.flatMap(({ model, at }): Point[] =>
+      model.yaw === undefined
+        ? []
+        : [
+            [
+              at.x / S + ORIGIN[0] + Math.sin(model.yaw) * 10,
+              at.z / S + ORIGIN[1] + Math.cos(model.yaw) * 10,
+            ],
+          ],
+    ),
+  ];
   type Plant = {
     x: number;
     z: number;
@@ -2434,7 +2489,7 @@ export function createIslandWorld(
           : item.at
               .clone()
               .setY(TOP + item.model.height * 0.42 - (wide ? 0 : 0.3)),
-      yaw: island === "l" ? -0.45 : wide ? 0.42 : 0.2,
+      yaw: item.model.yaw ?? (island === "l" ? -0.45 : wide ? 0.42 : 0.2),
       pitch: 0.36,
       distance: (reach / Math.sin((FOV * Math.PI) / 360)) * (wide ? 1.15 : 1.5),
     };
@@ -2676,6 +2731,7 @@ export function createIslandWorld(
   > = {
     l3: { egg: "tower-fall", need: 3, within: 5 },
     a0: { egg: "star-dizzy", need: 5, within: 4 },
+    i4: { egg: "director-take", need: 3, within: 5 },
   };
   const pokeLandmark = (item: Placed, t: number) => {
     const id = landmarkId(item);

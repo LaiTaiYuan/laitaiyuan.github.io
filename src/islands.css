@@ -173,6 +173,13 @@
   opacity: 0;
   pointer-events: none;
 }
+/* 賴島(導): the name lets the pun slip, in small type */
+.isl-pun {
+  margin-left: 1px;
+  color: var(--tb-muted);
+  font-size: 0.8em;
+  font-weight: 700;
+}
 .isl-pin {
   position: absolute;
   top: 0;
@@ -231,13 +238,70 @@
 .isl-stage[data-spot="1"] .isl-pin[data-spot="1"] > span,
 .isl-stage[data-spot="2"] .isl-pin[data-spot="2"] > span,
 .isl-stage[data-spot="3"] .isl-pin[data-spot="3"] > span,
+.isl-stage[data-spot="4"] .isl-pin[data-spot="4"] > span,
 .isl-stage[data-look="0"] .isl-pin[data-spot="0"] > span,
 .isl-stage[data-look="1"] .isl-pin[data-spot="1"] > span,
 .isl-stage[data-look="2"] .isl-pin[data-spot="2"] > span,
-.isl-stage[data-look="3"] .isl-pin[data-spot="3"] > span {
+.isl-stage[data-look="3"] .isl-pin[data-spot="3"] > span,
+.isl-stage[data-look="4"] .isl-pin[data-spot="4"] > span {
   background: var(--tb-coral);
   transform: translate(-50%, calc(-100% - 7px)) scale(1.3);
   transition-delay: 0s;
+}
+
+/* 賴導's take, an easter egg: black bars close in like a widescreen film,
+   with his credit, then open again */
+.isl-film {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+.isl-stage[data-live] .isl-film {
+  display: block;
+}
+.isl-film > span {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 12%;
+  background: var(--tb-ink);
+  animation: isl-film-top 3.6s var(--tb-ease-out) both;
+}
+.isl-film > span:first-child {
+  top: 0;
+}
+.isl-film > span + span {
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 22px;
+  color: var(--tb-paper);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.4em;
+  animation-name: isl-film-bottom;
+}
+@keyframes isl-film-top {
+  0%,
+  100% {
+    transform: translateY(-100%);
+  }
+  12%,
+  86% {
+    transform: none;
+  }
+}
+@keyframes isl-film-bottom {
+  0%,
+  100% {
+    transform: translateY(100%);
+  }
+  12%,
+  86% {
+    transform: none;
+  }
 }
 
 /* Back button, time of day and the lion's hints */
@@ -741,6 +805,10 @@
     padding: 6px 10px;
     font-size: 12px;
   }
+  /* The lion's bubble covers the bottom bar here; the bars say it alone */
+  .isl-film > span + span {
+    color: transparent;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .isl-canvas,
@@ -752,7 +820,8 @@
   }
   .isl-lion > span,
   .isl-back,
-  .isl-toast > span {
+  .isl-toast > span,
+  .isl-film > span {
     animation: none;
   }
 }

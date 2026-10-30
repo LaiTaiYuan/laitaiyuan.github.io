@@ -120,6 +120,9 @@ export type Kit = {
   ): Sprite;
   // A soft white puff, for smoke and steam.
   puff(size: number): Sprite;
+  // A comic burst with a word in it, like the brand stage's "ACTION!",
+  // `size` tall, filled with `paper` (yellow); redrawn once the font loads.
+  burst(text: string, size: number, paper?: string): Sprite;
   // A word painted on a sign; redrawn once the web font has loaded.
   words(
     text: string,
@@ -140,6 +143,9 @@ export type Model = {
   // Where a close-up on a wide stage looks, if not a little below halfway
   // up: the lion's bubble covers the bottom left corner there.
   aim?: Vector3;
+  // The side a close-up looks from, if not its island's usual one (where the
+  // neighbours along a narrow island would fill the view).
+  yaw?: number;
   tick?(t: number, view: Vector3): void;
   // A click or tap on the landmark; `big` for the one that sets off its
   // easter egg (the world counts the pokes).
@@ -209,6 +215,23 @@ const tube = (
     radius,
     7,
   );
+// A round bar from one point to another: chair frames, braces, tripod legs.
+const strut = (
+  from: readonly [number, number, number],
+  to: readonly [number, number, number],
+  radius: number,
+) => {
+  const a = new Vector3(...from);
+  const b = new Vector3(...to);
+  return new CylinderGeometry(radius, radius, a.distanceTo(b), 8)
+    .applyQuaternion(
+      new Quaternion().setFromUnitVectors(
+        new Vector3(0, 1, 0),
+        b.clone().sub(a).normalize(),
+      ),
+    )
+    .translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+};
 // Thin bands round a tube from tube(), like the rings on a tabby's tail.
 const rings = (
   points: readonly (readonly [number, number, number])[],
@@ -3451,6 +3474,380 @@ export function staffRoad(kit: Kit, lift: number): Model {
         (sprite.material as SpriteMaterial).opacity =
           Math.min(1, along / 1.5) * (1 - along / length);
       });
+    },
+  };
+}
+
+// I ⑤: 賴導's film set. 賴島 sounds just like 賴導, Director Lai, and as a
+// child Leonard wanted to be a film director. It is set out for a close-up
+// from the sea to the east, where the island's other landmarks stay out of
+// the shot: his chair has its back to that view, 賴導 on the canvas and
+// nobody in it (he is at his desk); the slate on an apple box carries the
+// title, 賴島; a film camera on its tripod keeps rolling, a lamp waits for
+// the night and the megaphone lies in the grass. A poke claps the slate for
+// an "ACTION!"; the third in a row shoots a whole take, cut with 「卡！」.
+export function directorSet(kit: Kit): Model {
+  const { c } = kit;
+  const group = new Group();
+  const wood = kit.paint(c.wood);
+  const dark = kit.paint(c.woodDark);
+  const canvas = kit.paint(c.blue);
+  const ink = kit.paint(c.ink);
+  const white = kit.paint(c.white);
+  const steel = kit.paint(c.steel);
+
+  // The director's chair, its back to the close-up: a wooden frame with
+  // crossed legs, blue canvas, and the name in yellow.
+  const chair = put(group, new Group(), -0.12, 0, 0);
+  chair.rotation.y = 1.3;
+  for (const x of [-0.2, 0.2]) {
+    for (const [from, to] of [
+      [
+        [x, 0, -0.12],
+        [x, 0.47, -0.12],
+      ],
+      [
+        [x, 0, 0.12],
+        [x, 0.76, 0.12],
+      ],
+      [
+        [x, 0.31, -0.12],
+        [x, 0.31, 0.12],
+      ],
+    ] as const)
+      put(chair, kit.solid(strut(from, to, 0.017), wood, 1), 0, 0, 0);
+    put(
+      chair,
+      kit.solid(rounded(0.06, 0.035, 0.33, 0.015), wood, 1.1),
+      x,
+      0.485,
+      -0.005,
+    );
+    put(chair, kit.solid(ball(0.024, 10, 8), wood, null), x, 0.77, 0.12);
+  }
+  for (const z of [-0.12, 0.12])
+    for (const side of [-1, 1])
+      put(
+        chair,
+        kit.solid(
+          strut([-0.2 * side, 0.05, z], [0.2 * side, 0.29, z], 0.012),
+          dark,
+          null,
+        ),
+        0,
+        0,
+        0,
+      );
+  put(chair, kit.solid(rounded(0.4, 0.025, 0.25, 0.01), canvas, 1.1), 0, 0.315, 0);
+  put(
+    chair,
+    kit.solid(rounded(0.44, 0.17, 0.024, 0.012), canvas, 1.2),
+    0,
+    0.655,
+    0.12,
+  );
+  const name = new Mesh(
+    new PlaneGeometry(0.38, 0.135),
+    kit.textured(kit.words("賴導", 256, 90, kit.hex.yellow, kit.hex.blue)),
+  );
+  put(chair, name, 0, 0.655, 0.134);
+
+  // The apple box and the slate, chalked with the title: 賴島.
+  const box = put(group, new Group(), 0.02, 0, 0.46);
+  box.rotation.y = 1.6;
+  put(box, kit.solid(rounded(0.24, 0.13, 0.17, 0.02), wood, 1.2), 0, 0.065, 0);
+  put(
+    box,
+    kit.solid(rounded(0.09, 0.03, 0.01, 0.01), dark, null),
+    0,
+    0.085,
+    0.086,
+  );
+  const slate = put(box, new Group(), 0, 0.13, -0.01);
+  slate.rotation.x = -0.1;
+  put(slate, kit.solid(rounded(0.28, 0.19, 0.022, 0.012), ink, 1.1), 0, 0.095, 0);
+  const title = new Mesh(
+    new PlaneGeometry(0.24, 0.085),
+    kit.textured(kit.words("賴島", 256, 90, kit.hex.paper, kit.hex.ink)),
+  );
+  put(slate, title, 0, 0.13, 0.0125);
+  put(slate, new Mesh(rounded(0.25, 0.007, 0.004, 0.002), white), 0, 0.078, 0.012);
+  put(slate, new Mesh(rounded(0.007, 0.055, 0.004, 0.002), white), 0, 0.045, 0.012);
+  const stripe = rounded(0.047, 0.034, 0.024, 0.006);
+  for (let k = 0; k < 6; k++)
+    put(
+      slate,
+      kit.solid(stripe, k % 2 ? white : ink, 1),
+      -0.1175 + k * 0.047,
+      0.207,
+      0,
+    );
+  // The clapper, hinged at the left, stays open until it claps.
+  const clapper = live(put(slate, new Group(), -0.14, 0.224, 0));
+  for (let k = 0; k < 6; k++)
+    put(
+      clapper,
+      kit.solid(stripe, k % 2 ? ink : white, 1),
+      0.0235 + k * 0.047,
+      0.017,
+      0,
+    );
+  put(
+    slate,
+    kit.solid(disc(0.012, 0.03, 10).rotateX(Math.PI / 2), steel, null),
+    -0.14,
+    0.224,
+    0,
+  );
+
+  // The film camera on its tripod, its lens on the slate.
+  const tripod = put(group, new Group(), 0, 0, -0.55);
+  for (let k = 0; k < 3; k++) {
+    const a = Math.PI / 2 + (k / 3) * Math.PI * 2;
+    put(
+      tripod,
+      kit.solid(
+        strut([0, 0.47, 0], [Math.cos(a) * 0.17, 0, Math.sin(a) * 0.17], 0.013),
+        dark,
+        1,
+      ),
+      0,
+      0,
+      0,
+    );
+  }
+  put(tripod, kit.solid(disc(0.045, 0.03, 16), ink, 1), 0, 0.475, 0);
+  const camera = put(tripod, new Group(), 0, 0.49, 0);
+  camera.rotation.y = Math.PI / 2;
+  put(camera, kit.solid(rounded(0.27, 0.15, 0.13, 0.025), ink, 1.2), 0, 0.075, 0);
+  put(
+    camera,
+    kit.solid(disc(0.046, 0.09, 20).rotateZ(Math.PI / 2), steel, 1),
+    -0.18,
+    0.075,
+    0,
+  );
+  put(
+    camera,
+    kit.solid(disc(0.056, 0.022, 20).rotateZ(Math.PI / 2), ink, 1),
+    -0.228,
+    0.075,
+    0,
+  );
+  put(
+    camera,
+    kit.solid(
+      disc(0.042, 0.008, 20).rotateZ(Math.PI / 2),
+      kit.paint(c.glass, 0.25),
+      null,
+    ),
+    -0.24,
+    0.075,
+    0,
+  );
+  put(
+    camera,
+    kit.solid(disc(0.02, 0.07, 10).rotateZ(Math.PI / 2), ink, null),
+    0.165,
+    0.11,
+    -0.035,
+  );
+  // Two reels on top, the camera's ears, turning while it rolls.
+  const reels = [-0.055, 0.085].map((x) => {
+    put(
+      camera,
+      kit.solid(rounded(0.024, 0.06, 0.024, 0.008), ink, null),
+      x,
+      0.17,
+      0,
+    );
+    const reel = live(put(camera, new Group(), x, 0.25, 0));
+    put(
+      reel,
+      kit.solid(
+        disc(0.085, 0.03, 32).rotateX(Math.PI / 2),
+        kit.paint(c.metal),
+        1.1,
+      ),
+      0,
+      0,
+      0,
+    );
+    put(
+      reel,
+      kit.solid(disc(0.02, 0.036, 12).rotateX(Math.PI / 2), ink, null),
+      0,
+      0,
+      0,
+    );
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2;
+      put(
+        reel,
+        kit.solid(disc(0.022, 0.034, 12).rotateX(Math.PI / 2), ink, null),
+        Math.cos(a) * 0.048,
+        Math.sin(a) * 0.048,
+        0,
+      );
+    }
+    return reel;
+  });
+  // Its tally light blinks while it rolls.
+  const tally = live(put(camera, new Group(), -0.1, 0.162, 0.05));
+  put(tally, new Mesh(ball(0.018, 10, 8), kit.lamp(c.coral, c.coral)), 0, 0, 0);
+  put(tally, kit.halo(c.coral, 0.3, 0.15, 0.7), 0, 0, 0.02);
+
+  // A lamp on a stand, aimed at the chair, lit at night.
+  const stand = put(group, new Group(), -0.42, 0, -0.26);
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 + 0.4;
+    put(
+      stand,
+      kit.solid(
+        strut([0, 0.16, 0], [Math.cos(a) * 0.11, 0, Math.sin(a) * 0.11], 0.01),
+        ink,
+        null,
+      ),
+      0,
+      0,
+      0,
+    );
+  }
+  put(stand, kit.solid(strut([0, 0.14, 0], [0, 0.6, 0], 0.012), ink, 1), 0, 0, 0);
+  const lamp = put(stand, new Group(), 0, 0.64, 0);
+  lamp.rotation.y = -0.6;
+  put(
+    lamp,
+    kit.solid(rounded(0.035, 0.07, 0.035, 0.01), ink, null),
+    0,
+    -0.04,
+    0,
+  );
+  put(
+    lamp,
+    kit.solid(disc(0.068, 0.12, 20).rotateZ(Math.PI / 2), steel, 1.2),
+    0,
+    0.02,
+    0,
+  );
+  put(
+    lamp,
+    new Mesh(
+      disc(0.056, 0.01, 20).rotateZ(Math.PI / 2),
+      kit.lamp(c.paper, c.yellowLight),
+    ),
+    0.063,
+    0.02,
+    0,
+  );
+  for (const side of [-1, 1])
+    put(
+      lamp,
+      kit.solid(rounded(0.06, 0.006, 0.12, 0.003), ink, null),
+      0.088,
+      0.02 + side * 0.068,
+      0,
+    ).rotation.z = side * 0.5;
+  put(lamp, kit.halo(c.yellow, 1, 0, 0.9), 0.12, 0.02, 0);
+
+  // The megaphone, left in the grass, its bell towards the close-up.
+  const horn = live(put(group, new Group(), 0.33, 0.055, 0.14));
+  horn.rotation.y = 2.5;
+  const cone = put(horn, new Group(), 0, 0, 0);
+  cone.rotation.z = Math.PI / 2 - 0.25;
+  put(
+    cone,
+    kit.solid(
+      lathe([
+        [0, 0],
+        [0.022, 0],
+        [0.024, 0.035],
+        [0.034, 0.06],
+        [0.078, 0.215],
+        [0.082, 0.225],
+        [0.07, 0.225],
+        [0, 0.225],
+      ]),
+      kit.paint(c.yellow),
+      1.2,
+    ),
+    0,
+    -0.11,
+    0,
+  );
+  put(cone, kit.solid(disc(0.06, 0.004, 24), ink, null), 0, 0.117, 0);
+  put(
+    cone,
+    kit.solid(disc(0.029, 0.05, 14), kit.paint(c.coral), 1),
+    0,
+    -0.085,
+    0,
+  );
+
+  // The word over the slate: "ACTION!" for a clap, 「卡！」 to end a take.
+  const shouts = [
+    kit.burst("ACTION!", 0.3),
+    kit.burst("卡！", 0.3, kit.hex.coral),
+  ].map((sprite) => {
+    sprite.visible = false;
+    return live(put(group, sprite, 0.1, 0.8, 0.5));
+  });
+
+  const claps: { at: number; cut: boolean }[] = [];
+  let rolled = -10;
+  let rolling = 1.4;
+  let speed = 1.2;
+  let spun = 0;
+  let last = 0;
+  return {
+    group,
+    height: 0.85,
+    // From the sea to the east, looking a little north of it: the tool shop
+    // next door stays out of the shot.
+    yaw: 1.3,
+    aim: new Vector3(0, 0.36, -0.3),
+    poke(t, big) {
+      claps.push({ at: t, cut: false });
+      if (big) claps.push({ at: t + 2.6, cut: true });
+      claps.sort((a, b) => a.at - b.at);
+      rolled = t;
+      rolling = big ? 3 : 1.4;
+    },
+    tick(t) {
+      // The latest clap so far: the clapper snaps shut, bounces and opens
+      // again, its word bursts out over the slate and the megaphone jumps.
+      while (claps.length > 1 && claps[1].at <= t) claps.shift();
+      const clap = claps.length && claps[0].at <= t ? claps[0] : null;
+      const s = clap ? t - clap.at : 10;
+      clapper.rotation.z =
+        s < 0.08
+          ? 0.5 * (1 - (s / 0.08) ** 2)
+          : s < 0.55
+            ? Math.abs(Math.sin((s - 0.08) * 26)) *
+              0.07 *
+              Math.exp(-(s - 0.08) * 7)
+            : 0.5 * smooth((s - 0.55) / 0.5);
+      shouts.forEach((sprite, k) => {
+        sprite.visible = s < 1.5 && clap?.cut === (k === 1);
+        if (!sprite.visible) return;
+        const pop = Math.max(0.001, spring(s / 0.4));
+        sprite.scale.set(0.48 * pop, 0.3 * pop, 1);
+        sprite.position.y = 0.8 + s * 0.1;
+        const material = sprite.material as SpriteMaterial;
+        material.rotation = -0.14 + Math.sin(s * 16) * 0.12 * Math.exp(-s * 5);
+        material.opacity = s < 1.1 ? 1 : 1 - (s - 1.1) / 0.4;
+      });
+      const hop = s < 0.5 ? Math.sin((s / 0.5) * Math.PI) : 0;
+      horn.position.y = 0.055 + hop * 0.08;
+      horn.rotation.x = hop * 0.25;
+      // The reels keep turning, faster while a take rolls.
+      const dt = Math.min(0.05, Math.max(0, t - last));
+      last = t;
+      const busy = t - rolled < rolling;
+      speed += ((busy ? 9 : 1.2) - speed) * Math.min(1, dt * 4);
+      spun += speed * dt;
+      for (const reel of reels) reel.rotation.z = -spun;
+      tally.visible = t % (busy ? 0.4 : 1.2) < (busy ? 0.2 : 0.7);
     },
   };
 }

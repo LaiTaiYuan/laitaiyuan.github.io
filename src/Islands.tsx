@@ -333,10 +333,21 @@ export function IslandsSection() {
   }, []);
   const fun = useIslandPlay();
   const { play } = fun;
+  // 賴導's take (the director's chair, three claps in a row): the stage goes
+  // widescreen for a moment.
+  const [take, setTake] = useState(0);
+  useEffect(() => {
+    if (!take) return;
+    const timer = window.setTimeout(() => setTake(0), 3600);
+    return () => window.clearTimeout(timer);
+  }, [take]);
   const world = useIslandWorld({
     pick: choose,
     look: setLook,
-    play,
+    play: (id, act, eggs) => {
+      if (eggs?.includes("director-take")) setTake((count) => count + 1);
+      play(id, act, eggs);
+    },
     turned: setTurned,
   });
   const { worldRef, live, stageRef } = world;
@@ -466,7 +477,12 @@ export function IslandsSection() {
                 >
                   <span>
                     <b>{island.letter}</b>
-                    {island.name}
+                    <span>
+                      {island.name}
+                      {island.pun && (
+                        <span className="isl-pun">({island.pun})</span>
+                      )}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -489,6 +505,12 @@ export function IslandsSection() {
                 )),
               )}
             </div>
+            {take > 0 && (
+              <div key={take} className="isl-film" aria-hidden="true">
+                <span />
+                <span>賴導 作品</span>
+              </div>
+            )}
             <div className="isl-hud" ref={hudRef}>
               <div className="isl-hud-main">
                 {focus && (
@@ -631,9 +653,14 @@ export function IslandsSection() {
                           {island.letter}
                         </span>
                         <span className="isl-name">
-                          {island.letter === "你"
-                            ? island.name
-                            : `${island.letter}・${island.name}`}
+                          <span>
+                            {island.letter === "你"
+                              ? island.name
+                              : `${island.letter}・${island.name}`}
+                            {island.pun && (
+                              <span className="isl-pun">({island.pun})</span>
+                            )}
+                          </span>
                           <small>{island.spots.length} 個地標</small>
                         </span>
                       </button>

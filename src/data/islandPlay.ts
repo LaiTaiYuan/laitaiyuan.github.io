@@ -22,6 +22,7 @@ export type PlayId =
   | "i1"
   | "i2"
   | "i3"
+  | "i4"
   | "you0"
   | "cat"
   | "bunny"
@@ -149,6 +150,16 @@ export const playLines: Record<
       "下一首寫給誰？說不定是你",
     ],
   },
+  // 賴導's film set: the jokes of a small film crew.
+  i4: {
+    name: "導演椅",
+    poke: [
+      "Action！……卡！獅子你又看鏡頭了 🎬",
+      "演員都是動物，片酬是罐罐跟紅蘿蔔 🥕",
+      "預算只夠拍一座島，其他靠特效 ✨",
+      "收工！劇組便當在哪？🍱",
+    ],
+  },
   you0: {
     name: "你的故事",
     poke: [
@@ -260,6 +271,7 @@ export type EggId =
   | "bunny-dusk"
   | "star-dizzy"
   | "tower-fall"
+  | "director-take"
   | "cloud-rain"
   | "turtle-land"
   | "cub-air"
@@ -335,6 +347,12 @@ export const islandEggs: readonly {
     name: "疊疊樂倒了",
     line: "倒了……沒關係，重新疊就好 🧱",
     hint: "疊疊樂最怕被連續戳",
+  },
+  {
+    id: "director-take",
+    name: "賴導開拍",
+    line: "小時候的導演夢，今天在賴島開拍：Action！……卡！這顆 OK 🎬",
+    hint: "導演椅旁的場記板，連拍三下就開拍",
   },
   {
     id: "cloud-rain",
